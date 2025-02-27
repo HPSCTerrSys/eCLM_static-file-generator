@@ -11,7 +11,7 @@
 
 # load enviroment
 
-module load Stages/2024 Intel/2023.2.1 ParaStationMPI/5.9.2 ESMF/8.5.0
+module load Stages/2024 Intel/2023.2.1 ParaStationMPI/5.9.2-1 ESMF/8.5.0
 module load netCDF
 module load netCDF-Fortran
 

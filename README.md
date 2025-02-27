@@ -131,9 +131,18 @@ export CSMDATA="../mkmapdata/"
 # generate surfdata
 ./mksurfdata.pl -r usrspec -usr_gname $GRIDNAME -usr_gdate $CDATE -l $CSMDATA -allownofile -y 2005 -hirespft
 ```
-to create a real domain with hires pft. Again, you need to have set a $GRIDNAME, a current date $DATE in yymmdd and the path where the raw data of CLM is stored $CSMDATA. You have to download the data from https://svn-ccsm-inputdata.cgd.ucar.edu/trunk/inputdata/lnd/clm2/rawdata/ if you have no access.
 
+to create a real domain with hires pft.
+Again, you need to have set a $GRIDNAME, a current date $CDATE in yymmdd and the path where the raw data of CLM is stored $CSMDATA.
+You have to download the data from https://svn-ccsm-inputdata.cgd.ucar.edu/trunk/inputdata/lnd/clm2/rawdata/ if you have no access.
 Also make sure that mksurfdata and mkmapdata have the same parent directory.
+
+If not all input files are available, you can instead create the surface file with constant values.
+In a later step we are anyway going to replace variable in this file that are specific for eCLM (TSMP2).
+
+```
+./mksurfdata.pl -r usrspec -usr_gname $GRIDNAME -usr_gdate $CDATE -l $CSMDATA -allownofile -y 2005 -hirespft -usr_mapdir="../mkmapdata/" -no-crop -pft_idx 13 -pft_frc 100 -soil_cly 60 -soil_col 10 -soil_fmx 0.5 -soil_snd 40
+```
 
 PS: There are many versions mksurfdata.pl in the CTSM github. Stick to the CLM5-release version!
 Other versions use other mapping files and are not compatible with negative longitudes.
