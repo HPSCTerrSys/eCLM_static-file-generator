@@ -98,7 +98,7 @@ Change `-m conserve` to `-m bilinear` and add the options `--src_loc center` `--
 ## Creation of domain files
 
 The CIME submodule under `./gen_domain_files/` generates the domain files for CLM.
-This repository contains a simplified version of `gen_domain` which is easier to compile on JSC machines and you do not need the CIME repository.
+This repository contains a simplified version of `gen_domain` which is easier to compile on [JSC](https://www.fz-juelich.de/en/ias/jsc) machines and you do not need the CIME repository.
 Required modules are imkl, netCDF and netCDF-Fortran (all provided by `jsc.2024_Intel.sh`).
 Then compile `src/gen_domain.F90` with
 
@@ -126,7 +126,7 @@ After compilation, modify corresponding paths and execute
 ```
 export GRIDNAME="EUR-11"
 export CDATE="`date +%y%m%d`"   # should match mapping files creation date
-export CSMDATA="../mkmapdata/"
+export CSMDATA="/p/largedata2/detectdata/CentralDB/projects/z04/lnd/clm2/rawdata"
 
 # generate surfdata
 ./mksurfdata.pl -r usrspec -usr_gname $GRIDNAME -usr_gdate $CDATE -l $CSMDATA -allownofile -y 2005 -hirespft
@@ -134,7 +134,7 @@ export CSMDATA="../mkmapdata/"
 
 to create a real domain with hires pft.
 Again, you need to have set a $GRIDNAME, a current date $CDATE in yymmdd and the path where the raw data of CLM is stored $CSMDATA.
-You have to download the data from https://svn-ccsm-inputdata.cgd.ucar.edu/trunk/inputdata/lnd/clm2/rawdata/ if you have no access.
+You have to download the data from https://svn-ccsm-inputdata.cgd.ucar.edu/trunk/inputdata/lnd/clm2/rawdata/ if you have no access to JSC machines.
 Also make sure that mksurfdata and mkmapdata have the same parent directory.
 
 If not all input files are available, you can instead create the surface file with constant values.
