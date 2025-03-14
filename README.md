@@ -39,7 +39,8 @@ Adapt the input in `produce_scrip_from_griddata.ncl` to your gridfile and execut
 ncl produce_scrip_from_griddata.ncl
 ```
 
-For [TSMP2](https://github.com/HPSCTerrSys/TSMP2), on a 0.11 degree (12 km) resolution, you probably want to use [the 450x438 gridfile including boundary relaxation zone](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification/-/blob/main/grids/EUR-11_450x438_grid_inclbrz13gp_v2.nc) as the input file (`f` in the script).
+Grid files are available on the JSC machines in the DETECT CentralDB below `/p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/`.
+You can, e.g., use [the 450x438 gridfile including boundary relaxation zone](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification/-/blob/main/grids/EUR-11_450x438_grid_inclbrz13gp_v2.nc) as the input file (`f` in the script).
 
 To use `mksurfdata.pl`, regridding weights have to be created. For this the grid has to be properly defined in one of the following formats:
 
@@ -48,9 +49,10 @@ To use `mksurfdata.pl`, regridding weights have to be created. For this the grid
 - CF-convention-file
 
 SCRIP is a very old format not maintained anymore but is still the most effective solution.
+ESMF is able to basically handle any netCDF file that follows the CF-conventions version 1.6 and includes lat/lon values and corners.
+This means that ESMF mesh files are also able to describe unstructured grids.
 
-ESMF-Mesh files are able to describe unstructured grids.
-You can create the gridfile with the script [`scrip_mesh.py`](mkmapgrids/scrip_mesh.py).
+You can create a SCRIP file from a **rectilinear grid** with [`scrip_mesh.py`](mkmapgrids/scrip_mesh.py).
 The Python packages numpy, xarray and dask-expr need to be available.
 They are loaded by the [environment file](jsc.2024_Intel.sh) (sourced above).
 The script was modified from `mesh_maker.py` from the CTSM repository to accept 2D lon / lat.
@@ -72,7 +74,9 @@ This can be done with the python script [`ICON_SCRIP.py`](mkmapgrids/ICON_SCRIP.
 ./ICON_SCRIP.py --ifile EUR-R13B05_199920_grid_inclbrz_v2.nc --ofile EUR-R13B05_199920_grid_SCRIP.nc
 ```
 
-Input files can be found in the DETECT CentralDB below `/p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/`.
+For [TSMP2](https://github.com/HPSCTerrSys/TSMP2), on a 0.11 degree (12 km) resolution, you probably want to use [the EUR-R13B05 grid including boundary relaxation zone](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification/-/blob/main/grids/EUR-R13B05_199920_grid_inclbrz_v2.nc) as the input file (`f` in the script).
+This file is also on the JSC machines as `/p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/EUR-R13B05_199920_grid_inclbrz_v2.nc`.
+
 Further information about the DETECT grid specification can be found [here](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification).
 
 ## Creation of mapping files
