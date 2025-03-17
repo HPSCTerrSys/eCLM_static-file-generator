@@ -81,7 +81,11 @@ Further information about the DETECT grid specification can be found [here](http
 
 ## Creation of mapping files
 
-For the creation of the mapping files of CLM inputdata to our grid use `mkmapdata/runscript_mkmapdata.sh`. Adapt the script to your previously created SCRIP file, to your compute time project and to the path to the CLM mappingdata. The script can be used on JURECA and JUWELS but it is advisable to use the large memory partitions for larger domains. If you don't have access to the CLM mappingdata you have to download it. Use:
+For the creation of the mapping files of CLM inputdata to our grid use `mkmapdata/runscript_mkmapdata.sh`.
+Adjust the Slurm directives to your compute time project and modify `DATAFILE` to your previously created SCRIP file.
+The script can be used on JURECA and JUWELS but it is advisable to use the large memory partitions for larger domains.
+If you don't have access to the CLM mappingdata you have to download it.
+Use:
 
 ```
 wget --no-check-certificate -i clm_mappingfiles.txt
