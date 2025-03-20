@@ -134,14 +134,14 @@ After compilation, modify corresponding paths and execute
 ```
 export GRIDNAME="EUR-11"
 export CDATE="`date +%y%m%d`"   # should match mapping files creation date
-export CSMDATA="/p/largedata2/detectdata/CentralDB/projects/z04/lnd/clm2/rawdata"
+export CSMDATA="/p/largedata2/detectdata/CentralDB/projects/z04"
 
 # generate surfdata
 ./mksurfdata.pl -r usrspec -usr_gname $GRIDNAME -usr_gdate $CDATE -l $CSMDATA -allownofile -y 2005 -hirespft
 ```
 
 to create a real domain with hires pft.
-Again, you need to have set a $GRIDNAME, a current date $CDATE in yymmdd and the path where the raw data of CLM is stored $CSMDATA.
+Again, you need to have set $GRIDNAME, the date $CDATE in yymmdd format (matching the mapping files) and the path $CSMDATA where the raw data of CLM is stored.
 You have to download the data from https://svn-ccsm-inputdata.cgd.ucar.edu/trunk/inputdata/lnd/clm2/rawdata/ if you have no access to JSC machines.
 Also make sure that mksurfdata and mkmapdata have the same parent directory.
 
