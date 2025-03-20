@@ -145,8 +145,9 @@ Again, you need to have set $GRIDNAME, the date $CDATE in yymmdd format (matchin
 You have to download the data from https://svn-ccsm-inputdata.cgd.ucar.edu/trunk/inputdata/lnd/clm2/rawdata/ if you have no access to JSC machines.
 Also make sure that mksurfdata and mkmapdata have the same parent directory.
 
-If not all input files are available, you can instead create the surface file with constant values.
-In a later step we are anyway going to replace variable in this file that are specific for eCLM (TSMP2).
+At least in the original UCAR rawdata input files, not all variables are available (as the correct name).
+Instead you can create the surface file with *mostly* constant values (apparently `SOIL_COLOR` is not homogeneous) with the following command.
+In a later step we are anyway going to replace variables in this file that are specific for eCLM (TSMP2).
 
 ```
 ./mksurfdata.pl -r usrspec -usr_gname $GRIDNAME -usr_gdate $CDATE -l $CSMDATA -allownofile -y 2005 -hirespft -usr_mapdir="../mkmapdata/" -no-crop -pft_idx 13 -pft_frc 100 -soil_cly 60 -soil_col 10 -soil_fmx 0.5 -soil_snd 40
