@@ -1,2 +1,2 @@
 #! /bin/csh -f
-set CSMDATA = /p/scratch/cslts/poll1/rawdata/clm5/rawdata/clm5/rawdata
+set CSMDATA = /p/largedata2/detectdata/CentralDB/projects/z04/lnd/clm2/rawdata

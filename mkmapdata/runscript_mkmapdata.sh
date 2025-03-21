@@ -7,12 +7,11 @@
 #SBATCH --error=mpi-err.%j
 #SBATCH --time=00:30:00
 #SBATCH --partition=mem192
-
+#SBATCH --constraint=largedata
 
 # load enviroment
 
-module load Stages/2022  GCC/11.2.0  ParaStationMPI/5.5.0-1 ESMF/8.2.0
-#ml Stages/2023  Intel/2022.1.0  ParaStationMPI/5.8.0-1 ESMF/8.4.1
+module load Stages/2024 Intel/2023.2.1 ParaStationMPI/5.9.2-1 ESMF/8.5.0
 module load netCDF
 module load netCDF-Fortran
 
@@ -22,11 +21,11 @@ export ESMFBIN_PATH="${EBROOTESMF}/bin/"
 ### adjust your gridfile here
 export GRIDNAME=EUR-11
 export CDATE=`date +%y%m%d`
-export GRIDFILE=/p/scratch/cslts/poll1/SCRIP_EUR11.nc
+export GRIDFILE="../mkmapgrids/EUR-R13B05_199920_grid_SCRIP.nc"
 ###
 
-### Path to the raw files downloaded for the clm website
-rawpath="/p/scratch/cslts/poll1/rawdata/clm5/mkmapdata/"
+### Path to the raw files downloaded from the clm website
+rawpath="/p/largedata2/detectdata/CentralDB/projects/z04/lnd/clm2/mappingdata/grids"
 ###
 
 OUTPUT="$PWD"

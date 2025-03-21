@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 ##source and credit :https://gist.github.com/uturuncoglu/4fdf7d4253b250dcf3cad2335651f162#file-esmf_mesh-py and credit
 
 ## Reworked to a simple generation of a SCRIP file for an existing ICON-grid definition.
@@ -80,19 +80,46 @@ def main(argv):
     """
     Main driver to write SCRIP grid represenation
     """
-    # set defaults for command line arguments
-    ifile = 'EUR-R13B05_199920_grid_inclbrz_v2.nc'
-    ofile = 'ICON_SCRIP.nc'
-    overwrite = False
-    flip  = False
-    latrev = False
-    latvar = 'clat'
-    lonvar = 'clon'
-    maskvar = 'mask'
-    maskcal = False
-    double = False
+    # read command line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ifile'    , help='Input grid file name', required=True)
+    parser.add_argument('--ofile'    , help='Output file name', required=True)
+    parser.add_argument('--overwrite', default=False, help='Overwrites output file, defaults to not', required=False, action='store_true')
+    parser.add_argument('--flip'     , default=False, help='Flip mask values. SCRIP requires 0/land and 1/ocean', required=False, action='store_true')
+    parser.add_argument('--latrev'   , default=False, help='Reverse latitude axis', required=False, action='store_true')
+    parser.add_argument('--latvar'   , default='clat', help='Name of latitude variable, defults to ''lat''', required=False, nargs='?', const='lat')
+    parser.add_argument('--lonvar'   , default='clon', help='Name of longitude variable, defaults to ''lon''', nargs='?', const='lon')
+    parser.add_argument('--maskvar'  , default='mask', help='Name of mask variable, defaults to ''mask''', nargs='?', const='mask')
+    parser.add_argument('--maskcal'  , default=False, help='Calculate mask using fill value from variable defined in maskvar - 0/land and 1/ocean', required=False, action='store_true')
+    parser.add_argument('--double'   , default=False, help='Double precision output, defaults to float', required=False, action='store_true')
+    args = parser.parse_args()
 
- 
+    ifile = args.ifile
+    ofile = args.ofile
+    overwrite = args.overwrite
+    flip = args.flip
+    latrev = args.latrev
+    latvar = args.latvar
+    lonvar = args.lonvar
+    maskvar = args.maskvar
+    maskcal = args.maskcal
+    if not args.maskvar:
+        print('maskcal argument requires maskvar to calculate mask! exiting ...')
+        sys.exit()
+    double = args.double
+
+    # print out configuration
+    print("Configuration:")
+    print("ifile     = {}".format(ifile))
+    print("ofile     = {}".format(ofile))
+    print("overwrite = {}".format(overwrite))
+    print("flip      = {}".format(flip))
+    print("latrev    = {}".format(latrev))
+    print("latvar    = {}".format(latvar))
+    print("lonvar    = {}".format(lonvar))
+    print("maskvar   = {}".format(maskvar))
+    print("maskcal   = {} ({})".format(maskcal, maskvar))
+    print("double    = {}".format(double))
 
     # open file, transpose() fixes dimension ordering and mimic Fortran
     if os.path.isfile(ifile):
