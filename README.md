@@ -22,6 +22,8 @@ the necessary compilations in this repository can be performed consistently. It 
 ## Creation of gridfile
 
 First, we need to create a gridfile that describes our simulation domain.
+In TSMP2 for eCLM and ICON the **icosahedral (EUR-R13B05; and EUR-R13B07 (WIP)) grid** is used.
+Follow that in this guide if you want to use this with TSMP2; for other purposes guidelines for the **curvilinear** and **rectilinear** are here as well.
 The relevant scripts are in `./mkmapgrids/`.
 The gridfile will contain arrays of longitudes and latitudes of the gridboxes' centres and corners.
 The simulation domain is the EURO-CORDEX pan-European domain, which at high latitudes, for the Earth's canonical curvilinear grid, has significant convergence of the zonal dimension with increasing latitude.
