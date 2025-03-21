@@ -33,12 +33,12 @@ At the moment SCRIP generation from **curvilinear grids** can be done and is tes
 NCL can be installed through Conda.
 If you have no Conda yet on your system, you can install it, including the conda-forge channel, following [this guide](https://github.com/conda-forge/miniforge?tab=readme-ov-file#unix-like-platforms-macos--linux).
 Then follow [this guide](https://yonsci.github.io/yon_academic/portfolio/portfolio-9/#installing-ncl) to install NCL.
-The repository contains the NCL-script [`produce_scrip_from_griddata.ncl`](mkmapgrids/produce_scrip_from_griddata.ncl) that can create a SCRIP file from a netCDF that contains the lat- and lon-center coordinates.
+The repository contains the NCL-script [`mkscrip_curv.ncl`](mkmapgrids/mkscrip_curv.ncl) that can create a SCRIP file from a netCDF that contains the lat- and lon-center coordinates.
 It is not necessary to provide the corners because the internal routine of NCL seems to calculate them correctly for the later steps.
-Adapt the input in `produce_scrip_from_griddata.ncl` to your gridfile and execute:
+Adapt the input in `mkscrip_curv.ncl` to your gridfile and execute:
 
 ```
-ncl produce_scrip_from_griddata.ncl
+ncl mkscrip_curv.ncl
 ```
 
 Grid files are available on the JSC machines in the DETECT CentralDB below `/p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/`.
@@ -54,26 +54,26 @@ SCRIP is a very old format not maintained anymore but is still the most effectiv
 ESMF is able to basically handle any netCDF file that follows the CF-conventions version 1.6 and includes lat/lon values and corners.
 This means that ESMF mesh files are also able to describe unstructured grids.
 
-You can create a SCRIP file from a **rectilinear grid** with [`scrip_mesh.py`](mkmapgrids/scrip_mesh.py).
+You can create a SCRIP file from a **rectilinear grid** with [`mkscrip_rect.py`](mkmapgrids/mkscrip_rect.py).
 The Python packages numpy, xarray and dask-expr need to be available.
 They are loaded by the [environment file](jsc.2024_Intel.sh) (sourced above).
 The script was modified from `mesh_maker.py` from the CTSM repository to accept 2D lon / lat.
 The main caveat is that the resulting surface files are in 1D which makes them harder to handle.
-The python script `scrip_mesh.py` can create SCRIP files including the calculation of corners.
+The python script `mkscrip_rect.py` can create SCRIP files including the calculation of corners.
 It takes command line arguments like this:
 
 ```
-./scrip_mesh.py --ifile EURregLonLat01deg_1204x548_grid_inclbrz_v2.nc --ofile cordex_SCRIP.nc --oformat SCRIP
+./mkscrip_rect.py --ifile EUR-regLonLat01deg_1204x548_grid_inclbrz_v2.nc --ofile EUR-regLonLat01deg_659792_grid.nc --oformat SCRIP
 ```
 
 `--help` provides additional information.
 
 SCRIP files for **icosahedral grids**, like the ICON grid, are a special case because the usual calculation of corners is not usable.
 The best practice is to transform already existing ICON gridfiles to the SCRIP format.
-This can be done with the python script [`ICON_SCRIP.py`](mkmapgrids/ICON_SCRIP.py):
+This can be done with the python script [`mkscrip_icos.py`](mkmapgrids/mkscrip_icos.py):
 
 ```
-./ICON_SCRIP.py --ifile EUR-R13B05_199920_grid_inclbrz_v2.nc --ofile EUR-R13B05_199920_grid_SCRIP.nc
+./mkscrip_icos.py --ifile EUR-R13B05_199920_grid_inclbrz_v2.nc --ofile EUR-R13B05_199920_grid.nc
 ```
 
 For [TSMP2](https://github.com/HPSCTerrSys/TSMP2), on a 0.11 degree (12 km) resolution, you probably want to use [the EUR-R13B05 grid including boundary relaxation zone](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification/-/blob/main/grids/EUR-R13B05_199920_grid_inclbrz_v2.nc) as the input file (`f` in the script).
@@ -116,7 +116,7 @@ Then compile `src/gen_domain.F90` with
 gfortran -o gen_domain src/gen_domain.F90 -mkl -I${INC_NETCDF} -lnetcdff -lnetcdf
 ```
 
-After the compilation you can execute `gen_domain` with $MAPFILE being one of the mapping files created in the step before (in `mkmapdata/`) and $GRIDNAME being a string with the name of your grid, e.g. `EUR-11`.
+After the compilation you can execute `gen_domain` with $MAPFILE being one of the mapping files created in the step before (in `mkmapdata/`) and $GRIDNAME being a string with the name of your grid, e.g. `EUR-R13B05` for the 11-km icosahedral grid.
 The choice of $MAPFILE does not influence the lat- and longitude values in the domain file but can influence the land/sea mask.
 
 ```
@@ -134,7 +134,7 @@ The required modules Intel and netCDF-Fortran are loaded by `jsc.2024_Intel.sh`.
 After compilation, modify corresponding paths and execute
 
 ```
-export GRIDNAME="EUR-11"
+export GRIDNAME="EUR-R13B05"
 export CDATE="`date +%y%m%d`"   # should match mapping files creation date
 export CSMDATA="/p/largedata2/detectdata/CentralDB/projects/z04"
 

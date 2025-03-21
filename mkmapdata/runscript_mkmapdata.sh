@@ -19,8 +19,8 @@ module load netCDF-Fortran
 export ESMFBIN_PATH="${EBROOTESMF}/bin/"
 
 ### adjust your gridfile here
-export GRIDNAME=EUR-11
-export CDATE=`date +%y%m%d`
+export GRIDNAME="EUR-R13B05"
+export CDATE="`date +%y%m%d`"
 export GRIDFILE="../mkmapgrids/EUR-R13B05_199920_grid_SCRIP.nc"
 ###
 
@@ -36,7 +36,7 @@ do
 
 OUTFILE=map_${file}_to_${GRIDNAME}_nomask_aave_da_c$CDATE.nc
 
-srun $ESMFBIN_PATH/./ESMF_RegridWeightGen --ignore_unmapped -s ${rawpath}/${file} -d  $GRIDFILE -m conserve -w ${OUTPUT}/${OUTFILE} --dst_regional --netcdf4
+srun $ESMFBIN_PATH/ESMF_RegridWeightGen --ignore_unmapped -s ${rawpath}/${file} -d  $GRIDFILE -m conserve -w ${OUTPUT}/${OUTFILE} --dst_regional --netcdf4
 
 done
 
