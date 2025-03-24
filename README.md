@@ -31,7 +31,7 @@ This means that ESMF mesh files are also able to describe unstructured grids.
 
 First, we need to create a gridfile that describes our simulation domain.
 In TSMP2 for eCLM and ICON the *icosahedral grid* is used.
-These come in two resolutions: ~11 km resolution (EUR-R13B05) and ~3 km resolution (EUR-R13B07).
+These come in two resolutions: ~12 km resolution (EUR-R13B05) and ~3 km resolution (EUR-R13B07).
 Choose one of these two grids if you want to use this with TSMP2.
 In this guide the default is EUR-R13B05, meaning that you will end up with all low-resolution static files on the icosahedral grid if you do not modify any of the following commands or scripts.
 For other purposes guidelines for the *rectilinear* and *curvilinear* are here as well.
@@ -86,7 +86,7 @@ This can be done with the python script [`mkscrip_icos.py`](mkmapgrids/mkscrip_i
 ./mkscrip_icos.py --ifile EUR-R13B05_199920_grid_inclbrz_v2.nc --ofile EUR-R13B05_199920_grid.nc
 ```
 
-For [TSMP2](https://github.com/HPSCTerrSys/TSMP2), on a 0.11 degree (12 km) resolution, you probably want to use [the EUR-R13B05 grid including boundary relaxation zone](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification/-/blob/main/grids/EUR-R13B05_199920_grid_inclbrz_v2.nc) as the input file (`f` in the script).
+For [TSMP2](https://github.com/HPSCTerrSys/TSMP2), on a 0.11 degree (~12 km) resolution, you probably want to use [the EUR-R13B05 grid including boundary relaxation zone](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification/-/blob/main/grids/EUR-R13B05_199920_grid_inclbrz_v2.nc) as the input file.
 This file is also on the JSC machines as `/p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/EUR-R13B05_199920_grid_inclbrz_v2.nc`.
 If you want a high-resolution icosahedral grid, use `EUR-R13B07_2473796_grid_inclbrz_v1.nc`.
 
@@ -126,7 +126,7 @@ Then compile `src/gen_domain.F90` with
 gfortran -o gen_domain src/gen_domain.F90 -mkl -I${INC_NETCDF} -lnetcdff -lnetcdf
 ```
 
-After the compilation you can execute `gen_domain` with $MAPFILE being one of the mapping files created in the step before (in `mkmapdata/`) and $GRIDNAME being a string with the name of your grid, e.g. `EUR-R13B05` for the 11-km icosahedral grid.
+After the compilation you can execute `gen_domain` with $MAPFILE being one of the mapping files created in the step before (in `mkmapdata/`) and $GRIDNAME being a string with the name of your grid, e.g. `EUR-R13B05` for the ~12-km icosahedral grid.
 The choice of $MAPFILE does not influence the lat- and longitude values in the domain file but can influence the land/sea mask.
 
 ```
