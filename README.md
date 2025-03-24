@@ -3,15 +3,10 @@
 This repository shows how to generate curvilinear surface and domain fields for eCLM simulations.
 The generator follows the official CLM-workflow but makes a few adaptions.
 
-It is not necessary to clone CTSM and cime, as this generator is independent.
-However, the basis is the CLM5.0 release and there might be newer developments in the official repositories below
+It is not necessary to clone [CTSM](https://github.com/ESCOMP/CTSM.git) and [cime](https://github.com/ESMCI/cime.git), as this generator is independent.
+However, the basis is the CLM5.0 release and there might be newer developments in the official repositories.
 
-```
-https://github.com/ESCOMP/CTSM.git
-https://github.com/ESMCI/cime.git
-```
-
-By sourcing the provided enviroment file
+By sourcing the provided environment file
 
 ```
 source jsc.2024_Intel.sh
@@ -19,32 +14,10 @@ source jsc.2024_Intel.sh
 
 the necessary compilations in this repository can be performed consistently. It also contains the export of necessary paths for netCDF.
 
-## Creation of gridfile
+To create all static files needed to run eCLM, you first need to create a gridfile, 
 
-First, we need to create a gridfile that describes our simulation domain.
-In TSMP2 for eCLM and ICON the **icosahedral (EUR-R13B05; and EUR-R13B07 (WIP)) grid** is used.
-Follow that in this guide if you want to use this with TSMP2; for other purposes guidelines for the **curvilinear** and **rectilinear** are here as well.
-The relevant scripts are in `./mkmapgrids/`.
-The gridfile will contain arrays of longitudes and latitudes of the gridboxes' centres and corners.
-The simulation domain is the EURO-CORDEX pan-European domain, which at high latitudes, for the Earth's canonical curvilinear grid, has significant convergence of the zonal dimension with increasing latitude.
-Therefore we *rotate* the grid (of a same size) centred at the equator to the pan-European domain.
-
-At the moment SCRIP generation from **curvilinear grids** can be done and is tested to work with the NCAR Command Language (NCL), even though it is [deprecated](https://www.ncl.ucar.edu/open_letter_to_ncl_users.shtml).
-NCL can be installed through Conda.
-If you have no Conda yet on your system, you can install it, including the conda-forge channel, following [this guide](https://github.com/conda-forge/miniforge?tab=readme-ov-file#unix-like-platforms-macos--linux).
-Then follow [this guide](https://yonsci.github.io/yon_academic/portfolio/portfolio-9/#installing-ncl) to install NCL.
-The repository contains the NCL-script [`mkscrip_curv.ncl`](mkmapgrids/mkscrip_curv.ncl) that can create a SCRIP file from a netCDF that contains the lat- and lon-center coordinates.
-It is not necessary to provide the corners because the internal routine of NCL seems to calculate them correctly for the later steps.
-Adapt the input in `mkscrip_curv.ncl` to your gridfile and execute:
-
-```
-ncl mkscrip_curv.ncl
-```
-
-Grid files are available on the JSC machines in the DETECT CentralDB below `/p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/`.
-You can, e.g., use [the 450x438 gridfile including boundary relaxation zone](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification/-/blob/main/grids/EUR-11_450x438_grid_inclbrz13gp_v2.nc) as the input file (`f` in the script).
-
-To use `mksurfdata.pl`, regridding weights have to be created. For this the grid has to be properly defined in one of the following formats:
+To [create surface files](#creation-of-surface-file) regridding weights have to be created.
+For this the grid has to be properly defined in one of the following formats:
 
 - SCRIP
 - ESMF-Mesh
@@ -54,7 +27,24 @@ SCRIP is a very old format not maintained anymore but is still the most effectiv
 ESMF is able to basically handle any netCDF file that follows the CF-conventions version 1.6 and includes lat/lon values and corners.
 This means that ESMF mesh files are also able to describe unstructured grids.
 
-You can create a SCRIP file from a **rectilinear grid** with [`mkscrip_rect.py`](mkmapgrids/mkscrip_rect.py).
+## Creation of gridfile
+
+First, we need to create a gridfile that describes our simulation domain.
+In TSMP2 for eCLM and ICON the *icosahedral grid* is used.
+These come in two resolutions: ~11 km resolution (EUR-R13B05) and ~3 km resolution (EUR-R13B07).
+Choose one of these two grids if you want to use this with TSMP2.
+In this guide the default is EUR-R13B05, meaning that you will end up with all low-resolution static files on the icosahedral grid if you do not modify any of the following commands or scripts.
+For other purposes guidelines for the *rectilinear* and *curvilinear* are here as well.
+A curvilinear grid is normally used for CLM5, and when you run eCLM stand-alone you might choose to use a curvilinear grid as well.
+
+The relevant scripts to create the grid files are in `./mkmapgrids/`.
+The gridfile will contain arrays of longitudes and latitudes of the gridboxes' centres and corners.
+The simulation domain is the EURO-CORDEX pan-European domain, which at high latitudes, for the Earth's canonical curvilinear grid, has significant convergence of the zonal dimension with increasing latitude.
+Therefore we *rotate* the grid (of a same size) centred at the equator to the pan-European domain.
+
+### Rectilinear grid
+
+You can create a SCRIP file from a *rectilinear grid* with [`mkscrip_rect.py`](mkmapgrids/mkscrip_rect.py).
 The Python packages numpy, xarray and dask-expr need to be available.
 They are loaded by the [environment file](jsc.2024_Intel.sh) (sourced above).
 The script was modified from `mesh_maker.py` from the CTSM repository to accept 2D lon / lat.
@@ -68,7 +58,27 @@ It takes command line arguments like this:
 
 `--help` provides additional information.
 
-SCRIP files for **icosahedral grids**, like the ICON grid, are a special case because the usual calculation of corners is not usable.
+### Curvilinear grid
+
+At the moment SCRIP generation from *curvilinear grids* can be done and is tested to work with the NCAR Command Language (NCL), even though it is [deprecated](https://www.ncl.ucar.edu/open_letter_to_ncl_users.shtml).
+NCL can be installed through Conda.
+If you have no Conda yet on your system, you can install it, including the conda-forge channel, following [this guide](https://github.com/conda-forge/miniforge?tab=readme-ov-file#unix-like-platforms-macos--linux).
+Then follow [this guide](https://yonsci.github.io/yon_academic/portfolio/portfolio-9/#installing-ncl) to install NCL.
+The repository contains the NCL-script [`mkscrip_curv.ncl`](mkmapgrids/mkscrip_curv.ncl) that can create a SCRIP file from a netCDF that contains the lat- and lon-center coordinates.
+It is not necessary to provide the corners because the internal routine of NCL seems to calculate them correctly for the later steps.
+Adapt the input in `mkscrip_curv.ncl` to your gridfile and execute:
+
+```
+ncl mkscrip_curv.ncl
+```
+
+Grid files are available on the JSC machines in the DETECT CentralDB below `/p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/`.
+You can, e.g., use [the 450x438 gridfile including boundary relaxation zone](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification/-/blob/main/grids/EUR-11_450x438_grid_inclbrz13gp_v2.nc) as the input file (`f` in the script).
+If you want a high-resolution curvilinear grid, use `EUR-0275_1600x1552_grid_inclbrz_v2.nc`.
+
+### Icosahedral grid
+
+SCRIP files for *icosahedral grids* (sometimes called *triangular grid*), like the ICON grid, are a special case because the usual calculation of corners is not usable.
 The best practice is to transform already existing ICON gridfiles to the SCRIP format.
 This can be done with the python script [`mkscrip_icos.py`](mkmapgrids/mkscrip_icos.py):
 
@@ -78,13 +88,14 @@ This can be done with the python script [`mkscrip_icos.py`](mkmapgrids/mkscrip_i
 
 For [TSMP2](https://github.com/HPSCTerrSys/TSMP2), on a 0.11 degree (12 km) resolution, you probably want to use [the EUR-R13B05 grid including boundary relaxation zone](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification/-/blob/main/grids/EUR-R13B05_199920_grid_inclbrz_v2.nc) as the input file (`f` in the script).
 This file is also on the JSC machines as `/p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/EUR-R13B05_199920_grid_inclbrz_v2.nc`.
+If you want a high-resolution icosahedral grid, use `EUR-R13B07_2473796_grid_inclbrz_v1.nc`.
 
 Further information about the DETECT grid specification can be found [here](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification).
 
 ## Creation of mapping files
 
 For the creation of the mapping files of CLM inputdata to our grid use `mkmapdata/runscript_mkmapdata.sh`.
-Adjust the Slurm directives to your compute time project and modify `DATAFILE` to your previously created SCRIP file.
+Adjust the Slurm directives to your compute time project and modify `GRIDNAME` and `GRIDFILE` to your grid and previously created SCRIP file.
 The script can be used on JURECA and JUWELS but it is advisable to use the large memory partitions for larger domains.
 If you don't have access to the CLM mappingdata you have to download it.
 Use:
@@ -99,11 +110,10 @@ sbatch runscript_mkmapdata.sh
 
 This will create regridding and netCDF mapping files in the current directory.
 
-### ICON grid
+### Icosahedral grid
 
-Experience has shown that conservative remapping does not always work for ICON grids.
-As an alternative you can adapt `runscript_mkmapdata.sh`.
-Change `-m conserve` to `-m bilinear` and add the options `--src_loc center` `--dst_loc center` inside the script.
+Experience has shown that conservative remapping does not always work for icosahedral grids (EUR-R13B05 and EUR-R13B07).
+In that case `runscript_mkmapdata.sh` decides to create a mapping file that bilinearly interpolates fields.
 
 ## Creation of domain files
 
@@ -131,10 +141,10 @@ The surface creation tool is found under `./mksurfdata/`.
 You have to compile it with gmake in src-directory.
 The required modules Intel and netCDF-Fortran are loaded by `jsc.2024_Intel.sh`.
 
-After compilation, modify corresponding paths and execute
+After compilation execute
 
 ```
-export GRIDNAME="EUR-R13B05"
+export GRIDNAME="EUR-R13B05"    # in case of the low-resolution icosahedral grid
 export CDATE="`date +%y%m%d`"   # should match mapping files creation date
 export CSMDATA="/p/largedata2/detectdata/CentralDB/projects/z04"
 
