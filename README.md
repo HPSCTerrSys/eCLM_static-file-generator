@@ -14,9 +14,7 @@ source jsc.2024_Intel.sh
 
 the necessary compilations in this repository can be performed consistently. It also contains the export of necessary paths for netCDF.
 
-To create all static files needed to run eCLM, you first need to create a gridfile, 
-
-To [create surface files](#creation-of-surface-file) regridding weights have to be created.
+To create all static files needed to run eCLM, you first need to create a gridfile, then mapping and domain files and only then you can create surface and forcing files.
 For this the grid has to be properly defined in one of the following formats:
 
 - SCRIP
@@ -42,6 +40,9 @@ The gridfile will contain arrays of longitudes and latitudes of the gridboxes' c
 The simulation domain is the EURO-CORDEX pan-European domain, which at high latitudes, for the Earth's canonical curvilinear grid, has significant convergence of the zonal dimension with increasing latitude.
 Therefore we *rotate* the grid (of a same size) centred at the equator to the pan-European domain.
 
+Grid files are available on the JSC machines in the DETECT CentralDB below `/p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/`.
+This is part of a Git repository that is also available [here](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification).
+
 ### Rectilinear grid
 
 You can create a SCRIP file from a *rectilinear grid* with [`mkscrip_rect.py`](mkmapgrids/mkscrip_rect.py).
@@ -66,14 +67,13 @@ If you have no Conda yet on your system, you can install it, including the conda
 Then follow [this guide](https://yonsci.github.io/yon_academic/portfolio/portfolio-9/#installing-ncl) to install NCL.
 The repository contains the NCL-script [`mkscrip_curv.ncl`](mkmapgrids/mkscrip_curv.ncl) that can create a SCRIP file from a netCDF that contains the lat- and lon-center coordinates.
 It is not necessary to provide the corners because the internal routine of NCL seems to calculate them correctly for the later steps.
-Adapt the input in `mkscrip_curv.ncl` to your gridfile and execute:
+Adapt the variable `f` in `mkscrip_curv.ncl` to your gridfile and execute:
 
 ```
 ncl mkscrip_curv.ncl
 ```
 
-Grid files are available on the JSC machines in the DETECT CentralDB below `/p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/`.
-You can, e.g., use [the 450x438 gridfile including boundary relaxation zone](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification/-/blob/main/grids/EUR-11_450x438_grid_inclbrz13gp_v2.nc) as the input file (`f` in the script).
+You can, e.g., use the 450x438 gridfile including boundary relaxation zone, `EUR-11_450x438_grid_inclbrz13gp_v2.nc`, as the input file.
 If you want a high-resolution curvilinear grid, use `EUR-0275_1600x1552_grid_inclbrz_v2.nc`.
 
 ### Icosahedral grid
@@ -86,8 +86,7 @@ This can be done with the python script [`mkscrip_icos.py`](mkmapgrids/mkscrip_i
 ./mkscrip_icos.py --ifile EUR-R13B05_199920_grid_inclbrz_v2.nc --ofile EUR-R13B05_199920_grid.nc
 ```
 
-For [TSMP2](https://github.com/HPSCTerrSys/TSMP2), on a 0.11 degree (~12 km) resolution, you probably want to use [the EUR-R13B05 grid including boundary relaxation zone](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification/-/blob/main/grids/EUR-R13B05_199920_grid_inclbrz_v2.nc) as the input file.
-This file is also on the JSC machines as `/p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/EUR-R13B05_199920_grid_inclbrz_v2.nc`.
+For [TSMP2](https://github.com/HPSCTerrSys/TSMP2), on a 0.11 degree (~12 km) resolution, you probably want to use the EUR-R13B05 grid including boundary relaxation zone, `EUR-R13B05_199920_grid_inclbrz_v2.nc`, as the input file.
 If you want a high-resolution icosahedral grid, use `EUR-R13B07_2473796_grid_inclbrz_v1.nc`.
 
 Further information about the DETECT grid specification can be found [here](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification).
