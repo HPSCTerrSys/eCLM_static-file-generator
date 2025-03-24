@@ -46,7 +46,6 @@ do
 cdo sellonlatbox,-48,74,20,74 /p/data1/slmet/met_data/ecmwf/era5/grib/${year}/${month}/${year}${month}${my_date}${time}_ml.grb cut_domain_${year}${month}${my_date}${time}.grb
 
 cdo sellevel,137 cut_domain_${year}${month}${my_date}${time}.grb lower_level_${year}${month}${my_date}${time}.grb
-#cdo -t ecmwf -f nc4 copy lower_level_${month}${my_date}${time}.grb lower_level_${month}${my_date}${time}.nc
 cdo -t ecmwf selname,t,u,v,q lower_level_${year}${month}${my_date}${time}.grb variables_lower_level_${year}${month}${my_date}${time}.grb
 
 done

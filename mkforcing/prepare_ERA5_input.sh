@@ -86,7 +86,8 @@ do
     ncpdq -U ${tmpdir}/rmp_era5_${year}_${month}_ins.nc ${tmpdir}/${year}_${month}_temp7.nc
     cdo selvar,t,q ${tmpdir}/rmp_meteocloud_${year}_${month}.nc ${tmpdir}/${year}_${month}_temp3.nc
 
-    cdo merge ${tmpdir}/${year}_${month}_const.nc ${tmpdir}/${year}_${month}_temp3.nc ${tmpdir}/${year}_${month}_temp2.nc ${tmpdir}/${year}_${month}_temp.nc ${tmpdir}/${year}_${month}_temp7.nc ${tmpdir}/${year}_${month}_temp4.nc
+    cdo merge ${tmpdir}/${year}_${month}_const.nc ${tmpdir}/${year}_${month}_temp3.nc ${tmpdir}/${year}_${month}_temp2.nc &
+              ${tmpdir}/${year}_${month}_temp.nc ${tmpdir}/${year}_${month}_temp7.nc ${tmpdir}/${year}_${month}_temp4.nc
 
     ncks -C -x -v hyai,hyam,hybi,hybm ${tmpdir}/${year}_${month}_temp4.nc ${tmpdir}/${year}_${month}_temp5.nc
     ncwa -O -a lev ${tmpdir}/${year}_${month}_temp5.nc ${year}-${month}.nc
@@ -94,7 +95,6 @@ do
     ncrename -v sp,PSRF -v avg_sdswrf,FSDS -v avg_sdlwrf,FLDS -v avg_tprate,PRECTmms -v const,ZBOT -v t,TBOT -v q,QBOT ${year}-${month}.nc
 #    ncap2 -O -s 'where(FSDS<0.) FSDS=0' ${year}_${month}.nc
     ncatted -O -a units,ZBOT,m,c,"m" ${year}-${month}.nc
-#    ncrename -d valid_time,time -v valid_time,time ${year}-${month}.nc
 
     ncatted -O -h -a author,global,m,c,${author} ${year}-${month}.nc
     ncatted -O -h -a contact,global,m,c,${email} ${year}-${month}.nc
@@ -111,7 +111,7 @@ do
     ncrename -v lon,LONGXY ${year}_${month}_tmp.nc
     ncrename -v lat,LATIXY ${year}_${month}_tmp.nc
 
-    # 
+    #
     cdo selvar,LONE,LATN,LONW,LATS,AREA,EDGEE,EDGEN,EDGEW,EDGES ${clm3grid} ${tmpdir}/${year}_${month}_temp11.nc
     cdo -O merge ${tmpdir}/${year}_${month}_temp11.nc ${year}_${month}_tmp.nc ${year}-${month}.nc
 
@@ -121,7 +121,7 @@ do
     ncatted -O -h -a author,global,m,c,${author} ${year}-${month}.nc
     ncatted -O -h -a contact,global,m,c,${email} ${year}-${month}.nc
 
-    # 
+    #
     rm ${year}_${month}_tmp.nc ${tmpdir}/${year}_${month}_temp11.nc
 
   fi
