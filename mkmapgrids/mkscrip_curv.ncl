@@ -3,7 +3,7 @@ load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl" 
 load "$NCARG_ROOT/lib/ncarg/nclscripts/esmf/ESMF_regridding.ncl" 
 ;
-OutFileName = "EUR-11_197100_grid.nc"
+OutFileName = "EUR-11_197100_grid_SCRIP.nc"
 ;Adjust the filename/path to your gridfile and the variable names of lon lat if needed
 ;
 f     = addfile ("/p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/EUR-11_450x438_grid_inclbrz13gp_v2.nc", "r")

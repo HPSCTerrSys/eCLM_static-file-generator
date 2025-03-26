@@ -54,7 +54,7 @@ The python script `mkscrip_rect.py` can create SCRIP files including the calcula
 It takes command line arguments like this:
 
 ```
-./mkscrip_rect.py --ifile EUR-regLonLat01deg_1204x548_grid_inclbrz_v2.nc --ofile EUR-regLonLat01deg_659792_grid.nc --oformat SCRIP
+./mkscrip_rect.py --ifile EUR-regLonLat01deg_1204x548_grid_inclbrz_v2.nc --ofile EUR-regLonLat01deg_659792_grid_SCRIP.nc --oformat SCRIP
 ```
 
 `--help` provides additional information.
@@ -83,7 +83,7 @@ The best practice is to transform already existing ICON gridfiles to the SCRIP f
 This can be done with the python script [`mkscrip_icos.py`](mkmapgrids/mkscrip_icos.py):
 
 ```
-./mkscrip_icos.py --ifile EUR-R13B05_199920_grid_inclbrz_v2.nc --ofile EUR-R13B05_199920_grid.nc
+./mkscrip_icos.py --ifile EUR-R13B05_199920_grid_inclbrz_v2.nc --ofile EUR-R13B05_199920_grid_SCRIP.nc
 ```
 
 For [TSMP2](https://github.com/HPSCTerrSys/TSMP2), on a 0.11 degree (~12 km) resolution, you probably want to use the EUR-R13B05 grid including boundary relaxation zone, `EUR-R13B05_199920_grid_inclbrz_v2.nc`, as the input file.
