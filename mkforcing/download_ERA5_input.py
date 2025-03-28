@@ -47,7 +47,7 @@ def generate_datarequest(year, monthstr, days):
         "area": [74, -42, 20, 69]
     }
     # filename of downloaded file
-    target = 'download_era5.zip'
+    target = 'download_era5_'+str(year)+'-'+monthstr+'.zip'
     
     # Get the data from cds
     client.retrieve(dataset, request, target)
