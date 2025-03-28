@@ -164,23 +164,25 @@ The created surface and domain file have negative longitudes that CLM5 does not 
 
 ## Creation of forcing data from ERA5
 
-A possible source of atmospheric forcing for CLM5 is ERA5.
-The folder `mkforcing/` contains two scripts that assist the ERA5 retrieval.
-- `download_ERA5.py` contains a prepared retrieval for the cdsapi python module.
-By modifying the two loops inside the script it is possible to download ERA5 for any timerange.
-However, the script requires that cdsapi is installed with an user specific key.
-More information about the installation can be found [here](https://cds.climate.copernicus.eu/api-how-to).
-- `prepare_ERA5.sh` prepares ERA5 as an input by changing names and modifying units.
-ERA5 has to be regridded to your resolution before the script can be used.
+A possible source of atmospheric forcing for CLM (eCLM, CLM5, CLM3.5) is ERA5. It is safer to extract the lowermost level of temperature, humidity and wind of ERA5 instead of taking mixed 2m-values and 10m values. [This internal issue](https://gitlab.jsc.fz-juelich.de/HPSCTerrSys/tsmp-internal-development-tracking/-/issues/36) provides some details. The `download_ERA5_input.py` can be adapted to download another set of quantities.
 
-`download_ERA5_v2.py`, `prepare_ERA5_v2.sh` and `extract_ERA5_meteocloud.sh` provide an alternative pathway. [This issue](https://gitlab.jsc.fz-juelich.de/HPSCTerrSys/tsmp-internal-development-tracking/-/issues/36) provides some details. Basically it is safer to extract the lowermost level of temperature, humidity and wind of ERA5 instead of taking 2m-values. The workflow goes like this:
+The folder `mkforcing/` contains three scripts that assist the ERA5 retrieval.
+- `download_ERA5_input.py` contains a prepared retrieval for the cdsapi python module. However, the script requires that cdsapi is installed with an user specific key.
+More information about the installation and registration can be found [here](https://cds.climate.copernicus.eu/how-to-api).
+Usage:
+`python download_ERA5_input.py <year> <month> <output_directory>`
+Non-JSC users should adapt the download script to include temperature, specific humidity and horizontal wind speed.
+- `extract_ERA5_meteocloud.sh` prepares ERA5 as an input by changing names and modifying units (JSC users only).
+- `prepare_ERA5_input.sh` prepares ERA5 as an input by remapping the ERA5 data, changing names and modifying units. The script is divided into three parts, which could be handled separately. Remapping, merging the data, and special treatment in case CLM3.5 forces data preparation. If remapping is to be used, the remapping weights for the ERA data as well as the grid definition file of the target domain should be created beforehand. The following commands can be used to create the necessary files:
+```
+cdo gendis,<eclm_domainfile.nc> <era5caf_yyyy_mm.nc> <wgtdis_era5caf_to_domain.nc>
+cdo gendis,<eclm_domainfile.nc> <era5meteo_yyyy_mm.nc> <wgtdis_era5meteo_to_domain.nc>
+cdo griddes,<eclm_domainfile.nc> > <domain_griddef.txt>
+```
+Usage:
+`sh prepare_ERA5_input.sh iyear=<year> imonth=<month> wgtcaf=<wgtcaf> wgtmeteo=<wgtmeteo> griddesfile=<griddesfile>`
+More options are available, see script for details.
 
-```
-bash extract_ERA5_meteocloud.sh
-python download_ERA5_v2.py
-regridding
-bash prepare_ERA5_v2.sh
-```
 
 Note: This worfklow is not fully tested.
 
