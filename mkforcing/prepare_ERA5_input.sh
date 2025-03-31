@@ -71,7 +71,7 @@ do
   mkdir -pv $tmpdir
 
   if $lrmp; then
-    unzip ${pathdata}/download_era5.zip
+    /usr/bin/unzip ${pathdata}/download_era5_${year}_${month}.zip
     cdo remap,${griddesfile},${wgtcaf} data_stream-oper_stepType-instant.nc ${tmpdir}/rmp_era5_${year}_${month}_ins.nc
     cdo remap,${griddesfile},${wgtcaf} data_stream-oper_stepType-avg.nc ${tmpdir}/rmp_era5_${year}_${month}_avg.nc
 #    cdo remap,${griddesfile},${wgtcaf} ${pathdata}/era5_${year}_${month}.nc ${tmpdir}/rmp_era5_${year}_${month}.nc
@@ -86,7 +86,7 @@ do
     ncpdq -U ${tmpdir}/rmp_era5_${year}_${month}_ins.nc ${tmpdir}/${year}_${month}_temp7.nc
     cdo selvar,t,q ${tmpdir}/rmp_meteocloud_${year}_${month}.nc ${tmpdir}/${year}_${month}_temp3.nc
 
-    cdo merge ${tmpdir}/${year}_${month}_const.nc ${tmpdir}/${year}_${month}_temp3.nc ${tmpdir}/${year}_${month}_temp2.nc &
+    cdo merge ${tmpdir}/${year}_${month}_const.nc ${tmpdir}/${year}_${month}_temp3.nc ${tmpdir}/${year}_${month}_temp2.nc \
               ${tmpdir}/${year}_${month}_temp.nc ${tmpdir}/${year}_${month}_temp7.nc ${tmpdir}/${year}_${month}_temp4.nc
 
     ncks -C -x -v hyai,hyam,hybi,hybm ${tmpdir}/${year}_${month}_temp4.nc ${tmpdir}/${year}_${month}_temp5.nc
