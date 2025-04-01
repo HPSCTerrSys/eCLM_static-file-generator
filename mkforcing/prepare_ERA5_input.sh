@@ -71,9 +71,9 @@ do
   mkdir -pv $tmpdir
 
   if $lrmp; then
-    /usr/bin/unzip ${pathdata}/download_era5_${year}_${month}.zip
-    cdo remap,${griddesfile},${wgtcaf} data_stream-oper_stepType-instant.nc ${tmpdir}/rmp_era5_${year}_${month}_ins.nc
-    cdo remap,${griddesfile},${wgtcaf} data_stream-oper_stepType-avg.nc ${tmpdir}/rmp_era5_${year}_${month}_avg.nc
+    python -m zipfile -e ${pathdata}/download_era5_${year}_${month}.zip ${tmpdir}
+    cdo remap,${griddesfile},${wgtcaf} ${tmpdir}/data_stream-oper_stepType-instant.nc ${tmpdir}/rmp_era5_${year}_${month}_ins.nc
+    cdo remap,${griddesfile},${wgtcaf} ${tmpdir}/data_stream-oper_stepType-avg.nc ${tmpdir}/rmp_era5_${year}_${month}_avg.nc
 #    cdo remap,${griddesfile},${wgtcaf} ${pathdata}/era5_${year}_${month}.nc ${tmpdir}/rmp_era5_${year}_${month}.nc
     cdo remap,${griddesfile},${wgtmeteo} ${pathdata}/meteocloud_${year}_${month}.nc ${tmpdir}/rmp_meteocloud_${year}_${month}.nc
   fi
