@@ -65,7 +65,7 @@ do
 days_per_month=$(cal ${month} ${year} | awk 'NF {DAYS = $NF}; END {print DAYS}')
 for day in $(seq -w 1 ${days_per_month})
 do
-for hour in ${ihour}
+for hour in "${ihour[@]}"
 do
 
 # increment the running job counter
