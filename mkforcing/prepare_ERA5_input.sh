@@ -96,8 +96,8 @@ do
 #    ncap2 -O -s 'where(FSDS<0.) FSDS=0' ${year}_${month}.nc
     ncatted -O -a units,ZBOT,m,c,"m" ${year}-${month}.nc
 
-    ncatted -O -h -a author,global,m,c,${author} ${year}-${month}.nc
-    ncatted -O -h -a contact,global,m,c,${email} ${year}-${month}.nc
+    ncks -O -h --glb author="${author}" ${year}-${month}.nc
+    ncks -O -h --glb contact="${email}" ${year}-${month}.nc
 
     rm ${tmpdir}/${year}_${month}_temp*nc ${tmpdir}/${year}_${month}_const.nc
   fi
@@ -118,8 +118,8 @@ do
     ncrename -d rlon,lon ${year}-${month}.nc
     ncrename -d rlat,lat ${year}-${month}.nc
 
-    ncatted -O -h -a author,global,m,c,${author} ${year}-${month}.nc
-    ncatted -O -h -a contact,global,m,c,${email} ${year}-${month}.nc
+    ncks -O -h --glb author="${author}" ${year}-${month}.nc
+    ncks -O -h --glb contact="${email}" ${year}-${month}.nc
 
     #
     rm ${year}_${month}_tmp.nc ${tmpdir}/${year}_${month}_temp11.nc
