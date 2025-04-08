@@ -4,6 +4,7 @@
 lrmp=true
 lmerge=true
 lclm3=false
+ompthd=1
 # TSMP2/eclm
 pathdata=./
 wgtcaf=/p/scratch/cslts/poll1/sim/euro-cordex/tsmp2_wfe_eur-11u/dta/rmp_gridwgts/wgtdis_era5caf_to_eur11u-189976.nc
@@ -33,6 +34,7 @@ parse_arguments() {
             lrmp) lrmp="$value" ;;
             lmerge) lmerge="$value" ;;
             lclm3) lclm3="$value" ;;
+            ompthd) ompthd="$value" ;;
             pathdata) pathdata="$value" ;;
             wgtcaf) wgtcaf="$value" ;;
             wgtmeteo) wgtmeteo="$value" ;;
@@ -72,15 +74,14 @@ do
 
   if $lrmp; then
     python -m zipfile -e ${pathdata}/download_era5_${year}_${month}.zip ${tmpdir}
-    cdo remap,${griddesfile},${wgtcaf} ${tmpdir}/data_stream-oper_stepType-instant.nc ${tmpdir}/rmp_era5_${year}_${month}_ins.nc
-    cdo remap,${griddesfile},${wgtcaf} ${tmpdir}/data_stream-oper_stepType-avg.nc ${tmpdir}/rmp_era5_${year}_${month}_avg.nc
-#    cdo remap,${griddesfile},${wgtcaf} ${pathdata}/era5_${year}_${month}.nc ${tmpdir}/rmp_era5_${year}_${month}.nc
-    cdo remap,${griddesfile},${wgtmeteo} ${pathdata}/meteocloud_${year}_${month}.nc ${tmpdir}/rmp_meteocloud_${year}_${month}.nc
+    cdo -P ${ompthd} remap,${griddesfile},${wgtcaf} ${tmpdir}/data_stream-oper_stepType-instant.nc ${tmpdir}/rmp_era5_${year}_${month}_ins.nc
+    cdo -P ${ompthd} remap,${griddesfile},${wgtcaf} ${tmpdir}/data_stream-oper_stepType-avg.nc ${tmpdir}/rmp_era5_${year}_${month}_avg.nc
+    cdo -P ${ompthd} remap,${griddesfile},${wgtmeteo} ${pathdata}/meteocloud_${year}_${month}.nc ${tmpdir}/rmp_meteocloud_${year}_${month}.nc
   fi
 
   if $lmerge; then
 
-    cdo expr,'WIND=sqrt(u^2+v^2)' ${tmpdir}/rmp_meteocloud_${year}_${month}.nc ${tmpdir}/${year}_${month}_temp.nc
+    cdo -P ${ompthd} expr,'WIND=sqrt(u^2+v^2)' ${tmpdir}/rmp_meteocloud_${year}_${month}.nc ${tmpdir}/${year}_${month}_temp.nc
     cdo -f nc4c const,10,${tmpdir}/rmp_era5_${year}_${month}_avg.nc ${tmpdir}/${year}_${month}_const.nc
     ncpdq -U ${tmpdir}/rmp_era5_${year}_${month}_avg.nc ${tmpdir}/${year}_${month}_temp2.nc
     ncpdq -U ${tmpdir}/rmp_era5_${year}_${month}_ins.nc ${tmpdir}/${year}_${month}_temp7.nc
