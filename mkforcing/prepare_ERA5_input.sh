@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -eo pipefail
 
 # default values of parameters
 lrmp=true
@@ -41,11 +42,11 @@ parse_arguments() {
             griddesfile) griddesfile="$value" ;;
             clm3grid) clm3grid="$value" ;;
             tmpdir) tmpdir="$value" ;;
-	    wrkdir) wrkdir="$value" ;;
+            wrkdir) wrkdir="$value" ;;
             imonth) imonth="$value" ;;
             iyear) iyear="$value" ;;
-	    author) author="$value" ;;
-	    email) email="$value" ;;
+            author) author="$value" ;;
+            email) email="$value" ;;
             *) echo "Warning: Unknown parameter: $key" ;;
         esac
     done

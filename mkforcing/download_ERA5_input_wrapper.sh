@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Before using this script CDSAPI has to be configured (see README)
 # Needs to be executed at LOGIN node as connection to "outside" is required
+set -eo pipefail
 
 # load environment
 module load Python
@@ -42,7 +43,7 @@ while [[ "$current_date" < "$end_date" ]]; do
     month="${current_date#*-}"
 
     # start download script with data request
-    python download_ERA5_input.py $year $month $out_dir
+    ./download_ERA5_input.py $year $month $out_dir
 
     # Increment the month
     current_date=$(date -I -d "$current_date-01 + 1 month" | cut -d'-' -f1,2)

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -eo pipefail
 
 # load env -> not all CDO are compiled with "-t ecmwf"
 # module use $OTHERSTAGES
@@ -28,10 +29,10 @@ parse_arguments() {
             quiet) quiet=y;;
             iyear) iyear="$value" ;;
             imonth) imonth="$value" ;;
-	    ihour) ihour="$value" ;;
+            ihour) ihour="$value" ;;
             outdir) outdir="$value" ;;
             runpp) runpp="$value" ;;
-	    area) area="$value" ;;
+            area) area="$value" ;;
             *) echo "Warning: Unknown parameter: $key" ;;
         esac
     done
