@@ -167,8 +167,10 @@ The created surface and domain file have negative longitudes that CLM5 does not 
 A possible source of atmospheric forcing for CLM (eCLM, CLM5, CLM3.5) is ERA5. It is safer to extract the lowermost level of temperature, humidity and wind of ERA5 instead of taking mixed 2m-values and 10m values. [This internal issue](https://gitlab.jsc.fz-juelich.de/HPSCTerrSys/tsmp-internal-development-tracking/-/issues/36) provides some details. The `download_ERA5_input.py` can be adapted to download another set of quantities.
 
 The folder `mkforcing/` contains three scripts that assist the ERA5 retrieval.
-- `download_ERA5_input.py` contains a prepared retrieval for the cdsapi python module. However, the script requires that cdsapi is installed with an user specific key.
-More information about the installation and registration can be found [here](https://cds.climate.copernicus.eu/how-to-api).
+
+- `download_ERA5_input.py` contains a prepared retrieval for the cdsapi python module.
+The script requires that cdsapi is installed with a user specific key (API access token).
+More information about the installation and registration can be found [here](https://cds.climate.copernicus.eu/how-to-api) and where to put your access token [here](https://github.com/ecmwf/cdsapi?tab=readme-ov-file#install).
 Usage:
 `python download_ERA5_input.py <year> <month> <output_directory>`
 Non-JSC users should adapt the download script to include temperature, specific humidity and horizontal wind speed.
