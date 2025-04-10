@@ -170,7 +170,7 @@ The folder `mkforcing/` contains three scripts that assist the ERA5 retrieval.
 
 - `download_ERA5_input.py` contains a prepared retrieval for the cdsapi python module.
 The script requires that cdsapi is installed with a user specific key (API access token).
-More information about the installation and registration can be found [here](https://cds.climate.copernicus.eu/how-to-api) and where to put your access token [here](https://github.com/ecmwf/cdsapi?tab=readme-ov-file#install).
+More information about the installation and access can be found [here](https://cds.climate.copernicus.eu/how-to-api) or alternatively [here](https://github.com/ecmwf/cdsapi?tab=readme-ov-file#install).
 Usage:
 `python download_ERA5_input.py <year> <month> <output_directory>`
 Non-JSC users should adapt the download script to include temperature, specific humidity and horizontal wind speed.
