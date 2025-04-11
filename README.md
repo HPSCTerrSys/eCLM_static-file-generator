@@ -61,6 +61,16 @@ It takes command line arguments like this:
 
 ### Curvilinear grid
 
+If you have a 450x438 (EUR-11) or 1600x1552 (EUR-0275) grid file, those include halo gridboxes as in ICON that are automatically cut in an ICON simulation.
+The eCLM model does not do that, so you must truncate the files:
+
+```
+cd mkmapgrids/
+export CSMDATA="/p/largedata2/detectdata/CentralDB/projects/z04"
+ncks -d rlat,3,434 -d rlon,3,446 $CSMDATA/detect_grid_specs/grids/EUR-11_450x438_grid_inclbrz13gp_v2.nc EUR-11_444x432_grid_inclbrz13gp_v2.nc
+ncks -d rlat,3,1548 -d rlon,3,1596 /p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/EUR-0275_1600x1552_grid_inclbrz_v2.nc EUR-0275_1594x1546_grid_inclbrz_v2.nc
+```
+
 At the moment SCRIP generation from *curvilinear grids* can be done and is tested to work with the NCAR Command Language (NCL), even though it is [deprecated](https://www.ncl.ucar.edu/open_letter_to_ncl_users.shtml).
 NCL can be installed through Conda.
 If you have no Conda yet on your system, you can install it, including the conda-forge channel, following [this guide](https://github.com/conda-forge/miniforge?tab=readme-ov-file#unix-like-platforms-macos--linux).
