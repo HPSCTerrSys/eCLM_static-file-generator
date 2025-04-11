@@ -61,7 +61,9 @@ It takes command line arguments like this:
 
 ### Curvilinear grid
 
-If you have a 450x438 (EUR-11) or 1600x1552 (EUR-0275) grid file, those include halo gridboxes as in ICON that are automatically cut in an ICON simulation.
+You can, e.g., use the 450x438 gridfile including boundary relaxation zone, `EUR-11_450x438_grid_inclbrz13gp_v2.nc`, as the input file.
+If you want a high-resolution curvilinear grid, use `EUR-0275_1600x1552_grid_inclbrz_v2.nc`.
+However, those files include halo gridboxes as in ICON that are automatically cut in an ICON simulation.
 The eCLM model does not do that, so you must truncate the files:
 
 ```
@@ -82,9 +84,6 @@ Adapt the variable `f` in `mkscrip_curv.ncl` to your gridfile and execute:
 ```
 ncl mkscrip_curv.ncl
 ```
-
-You can, e.g., use the 450x438 gridfile including boundary relaxation zone, `EUR-11_450x438_grid_inclbrz13gp_v2.nc`, as the input file.
-If you want a high-resolution curvilinear grid, use `EUR-0275_1600x1552_grid_inclbrz_v2.nc`.
 
 ### Icosahedral grid
 
