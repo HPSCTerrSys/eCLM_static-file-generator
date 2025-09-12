@@ -22,6 +22,8 @@ module load Python/3.10.4
 module load NCO/5.1.3  
 module load CMake/3.23.1
 module load git/2.36.0-nodocs  
+#
+module load xarray/2022.9.0 dask/2022.12.0
 module li
 
 # Export LIB- and INC-NETCDF

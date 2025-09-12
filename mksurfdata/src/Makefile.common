@@ -177,7 +177,7 @@ ifeq ($(FC),gfortran)
 
 endif
 
-ifeq ($(FC),ifort)
+ifeq ($(FC),ifx)
 
   CPPDEF  += -DFORTRANUNDERSCORE
   FFLAGS  += -c -ftz -g -fp-model precise $(CPPDEF) $(cpp_path) \
@@ -233,8 +233,8 @@ endif
 
 ifeq ($(UNAMES),Linux)
   ifeq ($(USER_FC),$(null))
-    FC    := ifort
-    FCTYP   := ifort
+    FC    := ifx
+    FCTYP   := ifx
   else 
   ifeq ($(USER_FC),ftn)
       ifneq ($(USER_FCTYP),$(null))
@@ -295,7 +295,7 @@ ifeq ($(UNAMES),Linux)
       LDFLAGS  += -mp
     endif
   endif
-  ifeq ($(FCTYP),ifort)
+  ifeq ($(FCTYP),ifx)
 
     FFLAGS      += -ftz -g -fp-model precise -convert big_endian -assume byterecl -traceback -FR
     CFLAGS      += -m64 -g

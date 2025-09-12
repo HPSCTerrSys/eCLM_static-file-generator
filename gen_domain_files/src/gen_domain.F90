@@ -26,7 +26,6 @@ program fmain
   integer :: n                      ! index
   integer :: set_fv_pole_yc         ! fix pole ycs on this grid [0,1,2]
   integer :: nargs                  ! number of arguments
-  integer, external  :: iargc       ! number of arguments function
   character(LEN=512) :: arg         ! input argument
   character(LEN=512) :: cmdline     ! input command line
   character(LEN=512) :: fmap        ! file name ( input nc file)
@@ -46,7 +45,7 @@ program fmain
   fn2_out     = 'null'
   usercomment = 'null'
 
-  nargs = iargc()
+  nargs = command_argument_count()
   if (nargs == 0) then
      write(6,*)'invoke gen_domain -h for usage'
      stop
@@ -56,37 +55,37 @@ program fmain
   n = 1
   do while (n <= nargs)
     arg = ' '
-    call getarg (n, arg)
+    call get_command_argument (n, arg)
     n = n + 1
 
     select case (arg)
     case ('-m')
        ! input mapping file
-       call getarg (n, arg)
+       call get_command_argument (n, arg)
        n = n + 1
        fmap = trim(arg)
        cmdline = trim(cmdline) // ' -m ' // trim(arg)
     case ('-o')
        ! output ocean grid name
-       call getarg (n, arg)
+       call get_command_argument (n, arg)
        n = n + 1
        fn1_out = trim(arg)
        cmdline = trim(cmdline) // ' -o ' // trim(arg)
     case ('-l')
        ! output land grid name
-       call getarg (n, arg)
+       call get_command_argument (n, arg)
        n = n + 1
        fn2_out = trim(arg)
        cmdline = trim(cmdline) // ' -l ' // trim(arg)
     case ('-p')
        ! set pole on this grid [0,1,2]
-       call getarg (n, arg)
+       call get_command_argument (n, arg)
        n = n + 1
        set_fv_pole_yc = ichar(trim(arg))-48
        write(6,*)'set_fv_pole_yc is ',set_fv_pole_yc
     case ('-c')
        ! user comment
-       call getarg (n, arg)
+       call get_command_argument (n, arg)
        n = n + 1
        usercomment = trim(arg)
     case ('-h')
