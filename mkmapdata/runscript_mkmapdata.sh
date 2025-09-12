@@ -68,8 +68,6 @@ mv map_SCRIPgrid_0.5x0.5_AVHRR_c110228.nc_to_${GRIDNAME}_nomask_aave_da_c${CDATE
 
 mv map_SCRIPgrid_0.25x0.25_MODIS_c170321.nc_to_${GRIDNAME}_nomask_aave_da_c${CDATE}.nc map_0.25x0.25_MODIS_to_${GRIDNAME}_nomask_aave_da_c${CDATE}.nc
 
-mv map_SCRIPgrid_0.5x0.5_MODIS_c110228.nc_to_${GRIDNAME}_nomask_aave_da_c${CDATE}.nc map_0.5x0.5_MODIS_to_${GRIDNAME}_nomask_aave_da_c${CDATE}.nc 
-
 mv map_SCRIPgrid_5x5min_nomask_c110530.nc_to_${GRIDNAME}_nomask_aave_da_c${CDATE}.nc map_5x5min_nomask_to_${GRIDNAME}_nomask_aave_da_c${CDATE}.nc
 
 mv map_SCRIPgrid_5x5min_IGBP-GSDP_c110228.nc_to_${GRIDNAME}_nomask_aave_da_c${CDATE}.nc map_5x5min_IGBP-GSDP_to_${GRIDNAME}_nomask_aave_da_c${CDATE}.nc
