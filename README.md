@@ -28,7 +28,6 @@ This means that ESMF mesh files are also able to describe unstructured grids.
 ## Creation of gridfile
 
 First, we need to create a gridfile that describes our simulation domain.
-In TSMP2 for eCLM and ICON the *icosahedral grid* is used.
 These come in two resolutions: ~12 km resolution (EUR-R13B05) and ~3 km resolution (EUR-R13B07).
 Choose one of these two grids if you want to use this with TSMP2.
 In this guide the default is EUR-R13B05, meaning that you will end up with all low-resolution static files on the icosahedral grid if you do not modify any of the following commands or scripts.
@@ -69,6 +68,7 @@ script itself.
 
 ### Curvilinear grid
 
+Many models, among which eCLM *stand-alone*, uses a curvilinear grid.
 You can, e.g., use the 450x438 gridfile including boundary relaxation zone, `EUR-11_450x438_grid_inclbrz13gp_v2.nc`, as the input file.
 If you want a high-resolution curvilinear grid, use `EUR-0275_1600x1552_grid_inclbrz_v2.nc`.
 However, in eCLM we use a slightly smaller domain, so you must truncate the files:
@@ -94,7 +94,9 @@ ncl mkscrip_curv.ncl
 
 ### Icosahedral grid
 
-SCRIP files for *icosahedral grids* (sometimes called *triangular grid*), like the ICON grid, are a special case because the usual calculation of corners is not usable.
+The atmospheric model  ICON runs on an *icosahedral grid*, sometimes called *triangular grid*.
+The land model eCLM, when coupled to ICON (in TSMP2), also uses this grid.
+SCRIP files for *icosahedral grids*, like the ICON grid, are a special case because the usual calculation of corners is not usable.
 The best practice is to transform already existing ICON gridfiles to the SCRIP format.
 This can be done with the python script [`mkscrip_icos.py`](mkmapgrids/mkscrip_icos.py):
 
@@ -110,7 +112,8 @@ Further information about the DETECT grid specification can be found [here](http
 ## Creation of mapping files
 
 For the creation of the mapping files of CLM inputdata to our grid use `mkmapdata/runscript_mkmapdata.sh`.
-Adjust the Slurm directives to your compute time project and modify `GRIDNAME` and `GRIDFILE` to your grid and previously created SCRIP file.
+Adjust the Slurm directives to your compute time project and partition.
+Below the Slurm directives, modify `GRIDNAME` and `GRIDFILE` to your grid and previously created SCRIP file.
 The script can be used on JURECA and JUWELS but it is advisable to use the large memory partitions for larger domains.
 If you don't have access to the CLM mappingdata you have to download it.
 Use:
