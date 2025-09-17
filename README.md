@@ -68,7 +68,7 @@ script itself.
 
 ### Curvilinear grid
 
-eCLM can be used with a curvilinear grid.
+eCLM can be used with a *curvilinear grid*.
 
 You can, e.g., use the 450x438 gridfile including boundary relaxation zone, `EUR-11_450x438_grid_inclbrz13gp_v2.nc`, as the input file.
 If you want a high-resolution curvilinear grid, use `EUR-0275_1600x1552_grid_inclbrz_v2.nc`.
