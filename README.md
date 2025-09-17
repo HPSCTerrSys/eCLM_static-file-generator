@@ -59,6 +59,14 @@ It takes command line arguments like this:
 
 `--help` provides additional information.
 
+#### Alternative: Direct SCRIP-grid-file generation
+
+One can create a SCRIP file for a rectilinear script using the Python
+script `mkmapgrids/mkscripgrid.py`.
+
+For its usage, in particular setting inputs, please refer to the
+script itself.
+
 ### Curvilinear grid
 
 You can, e.g., use the 450x438 gridfile including boundary relaxation zone, `EUR-11_450x438_grid_inclbrz13gp_v2.nc`, as the input file.
