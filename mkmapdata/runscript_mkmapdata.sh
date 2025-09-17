@@ -40,14 +40,14 @@ do
         echo "Creating non-conservative remapping files for your icosahedral grid ${GRIDNAME}..."
         srun $ESMFBIN_PATH/ESMF_RegridWeightGen --ignore_unmapped -s ${rawpath}/${file} -d $GRIDFILE -m bilinear --src_loc center --dst_loc center -w ${OUTPUT}/${OUTFILE} --dst_regional --netcdf4
         ;;
-      *"EUR-"*)
+      *)
         echo "Creating conservative remapping files for your grid ${GRIDNAME}..."
         srun $ESMFBIN_PATH/ESMF_RegridWeightGen --ignore_unmapped -s ${rawpath}/${file} -d $GRIDFILE -m conserve -w ${OUTPUT}/${OUTFILE} --dst_regional --netcdf4
         ;;
-      *)
-        echo "Invalid GRIDNAME specified (${GRIDNAME}).  It should start with 'EUR-'."
-        exit 1
-        ;;
+      # *)
+      #   echo "Invalid GRIDNAME specified (${GRIDNAME}).  It should start with 'EUR-'."
+      #   exit 1
+      #   ;;
     esac
 done
 
