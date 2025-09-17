@@ -68,7 +68,8 @@ script itself.
 
 ### Curvilinear grid
 
-Many models, among which eCLM *stand-alone*, uses a curvilinear grid.
+eCLM can be used with a curvilinear grid.
+
 You can, e.g., use the 450x438 gridfile including boundary relaxation zone, `EUR-11_450x438_grid_inclbrz13gp_v2.nc`, as the input file.
 If you want a high-resolution curvilinear grid, use `EUR-0275_1600x1552_grid_inclbrz_v2.nc`.
 However, in eCLM we use a slightly smaller domain, so you must truncate the files:
@@ -96,7 +97,10 @@ ncl mkscrip_curv.ncl
 
 The atmospheric model  ICON runs on an *icosahedral grid*, sometimes called *triangular grid*.
 The land model eCLM, when coupled to ICON (in TSMP2), also uses this grid.
-SCRIP files for *icosahedral grids*, like the ICON grid, are a special case because the usual calculation of corners is not usable.
+
+Check out https://zonda.ethz.ch/ for generating icosahedral input
+grids for `mkscrip_icos.py` (specified under optino `--ifile`).
+
 The best practice is to transform already existing ICON gridfiles to the SCRIP format.
 This can be done with the python script [`mkscrip_icos.py`](mkmapgrids/mkscrip_icos.py):
 
