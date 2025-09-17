@@ -98,11 +98,9 @@ ncl mkscrip_curv.ncl
 The atmospheric model  ICON runs on an *icosahedral grid*, sometimes called *triangular grid*.
 The land model eCLM, when coupled to ICON (in TSMP2), also uses this grid.
 
-Check out https://zonda.ethz.ch/ for generating icosahedral input
-grids for `mkscrip_icos.py` (specified under optino `--ifile`).
+Check out https://zonda.ethz.ch/ for generating icosahedral input grids for `mkscrip_icos.py` (specified under option `--ifile`).
 
-The best practice is to transform already existing ICON gridfiles to the SCRIP format.
-This can be done with the python script [`mkscrip_icos.py`](mkmapgrids/mkscrip_icos.py):
+Then convert your ICON gridfile to the SCRIP format with the python script [`mkscrip_icos.py`](mkmapgrids/mkscrip_icos.py):
 
 ```
 ./mkscrip_icos.py --ifile EUR-R13B05_199920_grid_inclbrz_v2.nc --ofile EUR-R13B05_199920_grid_SCRIP.nc
