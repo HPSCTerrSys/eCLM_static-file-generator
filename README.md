@@ -74,7 +74,7 @@ ncks -d rlat,3,1548 -d rlon,3,1596 /p/largedata2/detectdata/CentralDB/projects/z
 
 At the moment SCRIP generation from *curvilinear grids* can be done and is tested to work with the NCAR Command Language (NCL), even though it is [deprecated](https://www.ncl.ucar.edu/open_letter_to_ncl_users.shtml).
 NCL can be installed through Conda.
-If you have no Conda yet on your system, you can install it, including the conda-forge channel, following [this guide](https://github.com/conda-forge/miniforge?tab=readme-ov-file#unix-like-platforms-macos--linux).
+If you have no Conda yet on your system, you can install it, including the conda-forge channel, following [this guide](https://github.com/conda-forge/miniforge?tab=readme-ov-file#unix-like-platforms-macos-linux--wsl).
 Then follow [this guide](https://yonsci.github.io/yon_academic/portfolio/portfolio-9/#installing-ncl) to install NCL.
 The repository contains the NCL-script [`mkscrip_curv.ncl`](mkmapgrids/mkscrip_curv.ncl) that can create a SCRIP file from a netCDF that contains the lat- and lon-center coordinates.
 It is not necessary to provide the corners because the internal routine of NCL seems to calculate them correctly for the later steps.
