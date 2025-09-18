@@ -150,7 +150,7 @@ After the compilation you can execute `gen_domain` with $MAPFILE being one of th
 The choice of $MAPFILE does not influence the lat- and longitude values in the domain file but can influence the land/sea mask.
 
 ```
-./gen_domain -m $MAPFILE -o $GRIDNAME -l $GRIDNAME
+./gen_domain -m $MAPFILE -o $GRIDNAME -l $GRIDNAME -u $USER
 ```
 
 The created domain file will later be modified.
