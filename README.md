@@ -201,7 +201,7 @@ If remapping is to be used, the remapping weights for the ERA data as well as th
 ```
 cdo gendis,<eclm_domainfile.nc> <era5caf_yyyy_mm.nc> <wgtdis_era5caf_to_domain.nc>
 cdo gendis,<eclm_domainfile.nc> <era5meteo_yyyy_mm.nc> <wgtdis_era5meteo_to_domain.nc>
-cdo griddes,<eclm_domainfile.nc> > <domain_griddef.txt>
+cdo griddes <eclm_domainfile.nc> > <domain_griddef.txt>
 ```
 
 Usage:
