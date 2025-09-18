@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eo pipefail
+set -o pipefail
 
 # load env -> not all CDO are compiled with "-t ecmwf"
 # module use $OTHERSTAGES
