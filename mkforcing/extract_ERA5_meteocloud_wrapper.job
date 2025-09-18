@@ -24,7 +24,7 @@ cd $RUNDIR
 running_jobs=0
 
 for year in `seq 2017 2020`; do
- for month in `seq 1 12`; do
+ for month in `seq -w 1 12`; do
   echo "process year "$year" month "$month
 
   # increment the running job counter
