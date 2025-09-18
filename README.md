@@ -189,6 +189,11 @@ Non-JSC users should adapt the download script to include temperature, specific 
 ### Preparation of ERA5 data I: Names and units
 `extract_ERA5_meteocloud.sh` prepares ERA5 as an input by changing names and modifying units (JSC users only).
 
+Usage:
+Running the wrapper job
+`sbatch extract_ERA5_meteocloud_wrapper.job`
+after adapting `year` and `month` loops according to needed dates.
+
 ### Preparation of ERA5 data II: Remapping
 `prepare_ERA5_input.sh` prepares ERA5 as an input by remapping the ERA5 data, changing names and modifying units. The script is divided into three parts, which could be handled separately. Remapping, merging the data, and special treatment in case CLM3.5 forces data preparation. 
 
