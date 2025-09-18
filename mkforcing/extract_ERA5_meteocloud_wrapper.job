@@ -27,11 +27,15 @@ for year in `seq 2017 2020`; do
  for month in `seq -w 1 12`; do
   echo "process year "$year" month "$month
 
+  # make default outdir
+  mkdir $year-$month
+  outdir=$year-$month
+
   # increment the running job counter
   ((running_jobs++))
 
   # launch job in the background
-  srun --exclusive -n 1 ./extract_ERA5_meteocloud.sh $year $month &
+  srun --exclusive -n 1 ./extract_ERA5_meteocloud.sh iyear=$year imonth=$month outdir=$outdir &
 
   # if the max number of parallel tasks is reached, wait for a job to finish
   if ((running_jobs >= SLURM_NTASKS)); then
