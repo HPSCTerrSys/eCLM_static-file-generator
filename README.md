@@ -168,23 +168,39 @@ A possible source of atmospheric forcing for CLM (eCLM, CLM5, CLM3.5) is ERA5. I
 
 The folder `mkforcing/` contains three scripts that assist the ERA5 retrieval.
 
-- `download_ERA5_input.py` contains a prepared retrieval for the cdsapi python module.
+Note: This worfklow is not fully tested.
+
+### Download of ERA5 data
+
+`download_ERA5_input.py` contains a prepared retrieval for the cdsapi python module.
 The script requires that cdsapi is installed with a user specific key (API access token).
+
 More information about the installation and access can be found [here](https://cds.climate.copernicus.eu/how-to-api) or alternatively [here](https://github.com/ecmwf/cdsapi?tab=readme-ov-file#install).
+
 Usage:
+Either directly:
 `python download_ERA5_input.py <year> <month> <output_directory>`
+Or using the wrapper script:
+`./download_ERA5_input_wrapper.sh`
+after changing dates and output directory in the `Settings` section inside this wrapper script.
+
 Non-JSC users should adapt the download script to include temperature, specific humidity and horizontal wind speed.
-- `extract_ERA5_meteocloud.sh` prepares ERA5 as an input by changing names and modifying units (JSC users only).
-- `prepare_ERA5_input.sh` prepares ERA5 as an input by remapping the ERA5 data, changing names and modifying units. The script is divided into three parts, which could be handled separately. Remapping, merging the data, and special treatment in case CLM3.5 forces data preparation. If remapping is to be used, the remapping weights for the ERA data as well as the grid definition file of the target domain should be created beforehand. The following commands can be used to create the necessary files:
+
+### Preparation of ERA5 data I: Names and units
+`extract_ERA5_meteocloud.sh` prepares ERA5 as an input by changing names and modifying units (JSC users only).
+
+### Preparation of ERA5 data II: Remapping
+`prepare_ERA5_input.sh` prepares ERA5 as an input by remapping the ERA5 data, changing names and modifying units. The script is divided into three parts, which could be handled separately. Remapping, merging the data, and special treatment in case CLM3.5 forces data preparation. 
+
+If remapping is to be used, the remapping weights for the ERA data as well as the grid definition file of the target domain should be created beforehand. The following commands can be used to create the necessary files:
 ```
 cdo gendis,<eclm_domainfile.nc> <era5caf_yyyy_mm.nc> <wgtdis_era5caf_to_domain.nc>
 cdo gendis,<eclm_domainfile.nc> <era5meteo_yyyy_mm.nc> <wgtdis_era5meteo_to_domain.nc>
 cdo griddes,<eclm_domainfile.nc> > <domain_griddef.txt>
 ```
+
 Usage:
 `sh prepare_ERA5_input.sh iyear=<year> imonth=<month> wgtcaf=<wgtcaf> wgtmeteo=<wgtmeteo> griddesfile=<griddesfile>`
 More options are available, see script for details.
 
-
-Note: This worfklow is not fully tested.
 
