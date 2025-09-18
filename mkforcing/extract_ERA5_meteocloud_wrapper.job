@@ -7,7 +7,7 @@
 #SBATCH --output=mpiMPMD-out.%j
 #SBATCH --error=mpiMPMD-err.%j
 #SBATCH --time=12:00:00
-#SBATCH --partition=devel
+#SBATCH --partition=batch
 #SBATCH --mail-type=NONE
 #SBATCH --account=slts
 
