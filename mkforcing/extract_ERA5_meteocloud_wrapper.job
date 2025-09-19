@@ -6,27 +6,44 @@
 #SBATCH --ntasks-per-node=48
 #SBATCH --output=mpiMPMD-out.%j
 #SBATCH --error=mpiMPMD-err.%j
-#SBATCH --time=02:00:00
-#SBATCH --partition=devel
+#SBATCH --time=12:00:00
+#SBATCH --partition=batch
 #SBATCH --mail-type=NONE
 #SBATCH --account=slts
 
-
+# load environment
 module purge
+module use $OTHERSTAGES
 ml Stages/2022  NVHPC/22.9  ParaStationMPI/5.5.0-1 CDO/2.0.2
 
 RUNDIR=$(pwd)
 
 cd $RUNDIR
 
-for year in `seq 2015 2020`; do
- echo "process year "$year
- srun --exclusive -n 1 ./extract_ERA5_meteocloud.sh $year &
+# start a counter for background jobs
+running_jobs=0
+
+for year in `seq 2017 2020`; do
+ for month in `seq -w 1 12`; do
+  echo "process year "$year" month "$month
+
+  # make default outdir
+  mkdir $year-$month
+  outdir=$year-$month
+
+  # increment the running job counter
+  ((running_jobs++))
+
+  # launch job in the background
+  srun --exclusive -n 1 ./extract_ERA5_meteocloud.sh iyear=$year imonth=$month outdir=$outdir &
+
+  # if the max number of parallel tasks is reached, wait for a job to finish
+  if ((running_jobs >= SLURM_NTASKS)); then
+     wait -n  # wait for one job to finish before starting another
+     ((running_jobs--))  # decrement the running job counter
+  fi
+
+ done
 done
-
-#srun --exclusive -n 1 ./extract_ERA5_meteocloud.sh 2017 &
-#srun --exclusive -n 1 ./extract_ERA5_meteocloud.sh 2018 &
-#srun --exclusive -n 1 ./extract_ERA5_meteocloud.sh 2019 &
-
 
 wait
