@@ -35,6 +35,7 @@ program fmain
   character(LEN=512) :: fn2_out_lnd ! file name (output nc file) for grid _b (lnd fraction)
   character(LEN=512) :: fn2_out_ocn ! file name (output nc file) for grid _b (ocn fraction)
   character(LEN=512) :: usercomment ! user comment
+  character(LEN=512) :: user        ! user name
   character(LEN= 8)  :: cdate       ! wall clock date
   character(LEN=10)  :: ctime       ! wall clock time
   !----------------------------------------------------
@@ -44,6 +45,7 @@ program fmain
   fn1_out     = 'null'
   fn2_out     = 'null'
   usercomment = 'null'
+  user        = 'null'
 
   nargs = command_argument_count()
   if (nargs == 0) then
@@ -88,6 +90,11 @@ program fmain
        call get_command_argument (n, arg)
        n = n + 1
        usercomment = trim(arg)
+    case ('-u')
+       ! username
+       call get_command_argument (n, arg)
+       n = n + 1
+       user = trim(arg)
     case ('-h')
        call usage_exit (' ')
     case default
@@ -106,11 +113,11 @@ program fmain
   fn2_out_lnd = 'domain.lnd.' // trim(fn2_out) // '_' // trim(fn1_out) // '.' // cdate(3:8) // '.nc'
   fn2_out_ocn = 'domain.ocn.' // trim(fn2_out) // '_' // trim(fn1_out) // '.' // cdate(3:8) // '.nc'
 
-  call gen_domain (fmap, fn1_out_ocn, fn2_out_lnd, fn2_out_ocn, set_fv_pole_yc, usercomment)
+  call gen_domain (fmap, fn1_out_ocn, fn2_out_lnd, fn2_out_ocn, set_fv_pole_yc, usercomment, user)
 
 contains
 
-  subroutine gen_domain(fmap, fn1_out_ocn, fn2_out_lnd, fn2_out_ocn, set_fv_pole_yc, usercomment)
+  subroutine gen_domain(fmap, fn1_out_ocn, fn2_out_lnd, fn2_out_ocn, set_fv_pole_yc, usercomment, user)
 
    implicit none
 
@@ -123,6 +130,7 @@ contains
    character(LEN=*), intent(in) :: fn2_out_ocn ! file name (output nc file) for grid _b (ocn frac)
    integer         , intent(in) :: set_fv_pole_yc
    character(LEN=*), intent(in) :: usercomment ! user comment from namelist
+   character(LEN=*), intent(in) :: user ! user name from namelist
 
    !--- domain data ---
    integer         ::   n         ! size of 1d domain
@@ -197,6 +205,7 @@ contains
    write(6,*) 'fn2_out_lnd= ',trim(fn2_out_lnd)
    write(6,*) 'fn2_out_ocn= ',trim(fn2_out_ocn)
    write(6,*) 'usercomment= ',trim(usercomment)
+   write(6,*) 'user= ',trim(user)
    write(6,*) 'eps    = ',eps
    write(6,*) 'fminval= ',fminval
    write(6,*) 'fmaxval= ',fmaxval
@@ -438,7 +447,7 @@ contains
          write(6,*) 'write ',trim(fn_out)
          call write_file(fid, fmap, units_xc, units_yc, n, ni, nj, nv, &
               xc, yc, xv, yv, area, omask, ofrac, suffix, eps, pole_fix, &
-              fmaxval, fminval, str_da, str_db, str_grido, str_grida)
+              fmaxval, fminval, str_da, str_db, str_grido, str_grida, user)
          call check_ret(nf_close(fid))
          write(6,*) 'successfully created domain file ', trim(fn_out)
       else if (nf == 2) then
@@ -450,7 +459,7 @@ contains
          write(6,*) 'write ',trim(fn_out_lnd)
          call write_file(fid, fmap, units_xc, units_yc, n, ni, nj, nv, &
               xc, yc, xv, yv, area, lmask, lfrac, suffix, eps, pole_fix, &
-              fmaxval, fminval, str_da, str_db, str_grido, str_grida)
+              fmaxval, fminval, str_da, str_db, str_grido, str_grida, user)
          call check_ret(nf_close(fid))
          write(6,*) 'successfully created domain file ', trim(fn_out_lnd)
 
@@ -458,7 +467,7 @@ contains
          write(6,*) 'write ',trim(fn_out_ocn)
          call write_file(fid, fmap, units_xc, units_yc, n, ni, nj, nv, &
               xc, yc, xv, yv, area, omask, ofrac, suffix, eps, pole_fix, &
-              fmaxval, fminval, str_da, str_db, str_grido, str_grida)
+              fmaxval, fminval, str_da, str_db, str_grido, str_grida, user)
          call check_ret(nf_close(fid))
          write(6,*) 'successfully created domain file ', trim(fn_out_ocn)
       end if
@@ -500,6 +509,7 @@ contains
     write(6,*) '                -l <gridlnd>'
     write(6,*) '                [-p set_fv_pole_yc]'
     write(6,*) '                [-c <usercomment>]'
+    write(6,*) '                [-u <user>]'
     write(6,*) ' '
     write(6,*) ' Where: '
     write(6,*) '    filemap = input conservative mapping file name (from ocn->atm)'
@@ -507,6 +517,7 @@ contains
     write(6,*) '    gridlnd = output land  grid name'
     write(6,*) '    set_fv_pole_yc = [0,1,2] ~ optional, default = 0'
     write(6,*) '    usercomment = optional, netcdf global attribute (character string)'
+    write(6,*) '    user = optional, username for history attribute (character string)'
     write(6,*) ' '
     write(6,*) ' The following output domain files are created:'
     write(6,*) '    domain.lnd.gridlnd_gridocn.nc'
@@ -529,7 +540,7 @@ contains
 
   subroutine write_file(fid, fmap, units_xc, units_yc, n, ni, nj, nv, &
        xc, yc, xv, yv, area, mask, frac, suffix, eps, pole_fix, &
-       fmaxval, fminval, str_da, str_db, str_grido, str_grida)
+       fmaxval, fminval, str_da, str_db, str_grido, str_grida, user)
 
     implicit none
 
@@ -559,13 +570,13 @@ contains
     character(LEN=*), intent(in) :: str_db       ! global attribute str - domain_b
     character(LEN=*), intent(in) :: str_grido    ! global attribute str - grid_file_ocn
     character(LEN=*), intent(in) :: str_grida    ! global attribute str - grid_file_atm
+    character(LEN=*), intent(in) :: user         ! user name
 
     !--- local ---
     character(LEN=CL)     :: host        ! hostname of machine running on
     character(LEN=CL)     :: str         ! fixed    length char string
     character(LEN=CL)     :: str_title   ! global attribute str - title
     character(LEN=CL)     :: str_source  ! global attribute str - source
-    character(LEN=CL)     :: user        ! user name
     integer               :: strlen      ! (trimmed) length of string
     integer               :: vid         ! nc variable ID
     integer               :: did         ! nc dimension ID
