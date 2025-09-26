@@ -162,8 +162,14 @@ The created domain file will later be modified.
 ## Creation of surface file
 
 The surface creation tool is found under `./mksurfdata/`.
-You have to compile it with gmake in src-directory.
 The required modules Intel and netCDF-Fortran are loaded by `jsc.2024_Intel.sh`.
+
+First, compile `mksurfdata_map` in src-directory:
+```
+# Inside ./mksurfdata/src
+gmake
+```
+Then check that `mksurfdata_map` is available inside `./mksurfdata/`.
 
 After compilation execute
 
