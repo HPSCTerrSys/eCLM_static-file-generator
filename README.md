@@ -149,6 +149,10 @@ gfortran -o gen_domain src/gen_domain.F90 -mkl -I${INC_NETCDF} -lnetcdff -lnetcd
 After the compilation you can execute `gen_domain` with $MAPFILE being one of the mapping files created in the step before (in `mkmapdata/`) and $GRIDNAME being a string with the name of your grid, e.g. `EUR-R13B05` for the ~12-km icosahedral grid.
 The choice of $MAPFILE does not influence the lat- and longitude values in the domain file but can influence the land/sea mask.
 
+**Hint:** For better reproducibility, specify the absolute path of
+`$MAPFILE`. The absolute path to the file can be printed using
+`realpath $MAPFILE`.
+
 ```
 ./gen_domain -m $MAPFILE -o $GRIDNAME -l $GRIDNAME -u $USER
 ```
@@ -158,8 +162,14 @@ The created domain file will later be modified.
 ## Creation of surface file
 
 The surface creation tool is found under `./mksurfdata/`.
-You have to compile it with gmake in src-directory.
 The required modules Intel and netCDF-Fortran are loaded by `jsc.2024_Intel.sh`.
+
+First, compile `mksurfdata_map` in src-directory:
+```
+# Inside ./mksurfdata/src
+gmake
+```
+Then check that `mksurfdata_map` is available inside `./mksurfdata/`.
 
 After compilation execute
 
