@@ -25,6 +25,11 @@ SCRIP is a very old format not maintained anymore but is still the most effectiv
 ESMF is able to basically handle any netCDF file that follows the CF-conventions version 1.6 and includes lat/lon values and corners.
 This means that ESMF mesh files are also able to describe unstructured grids.
 
+**Hint:** Once a static file generation is started, it is best
+practice to **not anymore copy or move the repository**. This ensures
+tracability of absolute paths, e.g. absolute paths of map files saved
+in the domain file as NetCDF attributes.
+
 ## Creation of gridfile
 
 First, we need to create a gridfile that describes our simulation domain.
