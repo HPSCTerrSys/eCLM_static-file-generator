@@ -58,13 +58,21 @@ It takes command line arguments like this:
 
 `--help` provides additional information.
 
-#### Alternative: Direct SCRIP-grid-file generation
+#### Rectilinear grid II: Python script for direct SCRIP-grid-file generation
 
 One can create a SCRIP file for a rectilinear script using the Python
 script `mkmapgrids/mkscripgrid.py`.
 
 For its usage, in particular setting inputs, please refer to the
 script itself.
+
+#### Rectilinar grid III: External Perl script from CTSM/CLM5 repo
+
+The following Perl script from CTSM/CLM5 provides an interface to
+similar functionality as the Python script
+`mkmapgrids/mkscripgrid.py`:
+
+https://github.com/ESCOMP/CTSM/blob/994e02983cf557410fe455b6bd64ee61ca50d488/tools/site_and_regional/mknoocnmap.pl
 
 ### Curvilinear grid
 
