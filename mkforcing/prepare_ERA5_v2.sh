@@ -6,9 +6,9 @@ lmerge=true #false
 lclm3=true
 
 # 
-pathdata=/p/project/detectlulcc/ferro1/eclm_static_file_workflow/mkforcing/
-wgtcaf=/p/project/detectlulcc/poll1/data/script_remap/wgtdis_era5caf_to_eur11-444x432.nc
-wgtmeteo=/p/project/detectlulcc/poll1/data/script_remap/wgtdis_era5meteo_to_eur11-444x432.nc
+pathdata=/p/project1/detectlulcc/ferro1/eclm_static_file_workflow/mkforcing/
+wgtcaf=/p/project1/detectlulcc/poll1/data/script_remap/wgtdis_era5caf_to_eur11-444x432.nc
+wgtmeteo=/p/project1/detectlulcc/poll1/data/script_remap/wgtdis_era5meteo_to_eur11-444x432.nc
 griddesfile=/p/largedata2/detectdata/projects/Z04/detect_grid_specs/web_pep_tmp/griddes_EUR-11_TSMP_FZJ-IBG3_444x432_webPEP_sub.txt
 clm3grid=/p/scratch/cslts/poll1/sim/EUR-11_ECMWF-ERA5_evaluation_r1i1p1_FZJ-COSMO5-01-CLM3-5-0-ParFlow3-12-0_vEXP/geo/TSMP_EUR-11/static/clm/griddata_CLM_EUR-11_TSMP_FZJ-IBG3_CLMPFLDomain_444x432.nc
 tmpdir=tmp_data
