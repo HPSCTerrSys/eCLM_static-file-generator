@@ -1,4 +1,24 @@
 #!/usr/bin/env python3
+"""
+Download ERA5 reanalysis data from Copernicus Climate Data Store (CDS).
+
+This script downloads ERA5 single-level reanalysis data for a specified month
+and year. The default data includes surface pressure, radiation fluxes, and
+precipitation at hourly resolution.
+
+Requirements:
+    - cdsapi library (pip install cdsapi)
+    - CDS API credentials configured in ~/.cdsapirc
+
+Usage:
+    python download_ERA5_input.py <year> <month> <output_directory>
+    python download_ERA5_input.py 2017 7 ./output
+    python download_ERA5_input.py --help
+
+Note:
+    CDS API credentials must be configured before use.
+    See: https://cds.climate.copernicus.eu/api-how-to
+"""
 import calendar
 import cdsapi
 import sys
