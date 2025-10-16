@@ -25,12 +25,21 @@ import sys
 import os
 
 def generate_days(year, month):
+    """Get the number of days in a given month and year.
+
+    Args:
+        year (int): Year
+        month (int): Month (1-12)
+
+    Returns:
+        list: List of day numbers for the month
+    """
     # Get the number of days in the given month
     num_days = calendar.monthrange(year, month)[1]
 
     # Generate the list of days as integers
     days = [day for day in range(1, num_days + 1)]
-    
+
     return days
 
 def generate_datarequest(year, monthstr, days):
