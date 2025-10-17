@@ -193,9 +193,6 @@ In a later step we are anyway going to replace variables in this file that are s
 ./mksurfdata.pl -r usrspec -usr_gname $GRIDNAME -usr_gdate $CDATE -l $CSMDATA -allownofile -y 2005 -hirespft -usr_mapdir="../mkmapdata/" -no-crop -pft_idx 13 -pft_frc 100 -soil_cly 60 -soil_col 10 -soil_fmx 0.5 -soil_snd 40
 ```
 
-PS: There are many versions mksurfdata.pl in the CTSM github. Stick to the CLM5-release version!
-Other versions use other mapping files and are not compatible with negative longitudes.
-
 ## Modification of the surface and domain file
 
 The created surface and domain file have negative longitudes that CLM5 does not accept and inherently has no landmask. To modify the longitudes and to add a landmask use `mod_domain.sh` after inserting the paths to your files.
