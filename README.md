@@ -25,6 +25,11 @@ SCRIP is a very old format not maintained anymore but is still the most effectiv
 ESMF is able to basically handle any netCDF file that follows the CF-conventions version 1.6 and includes lat/lon values and corners.
 This means that ESMF mesh files are also able to describe unstructured grids.
 
+**Hint:** Once a static file generation is started, it is best
+practice to **not anymore copy or move the repository**. This ensures
+tracability of absolute paths, e.g. absolute paths of map files saved
+in the domain file as NetCDF attributes.
+
 ## Creation of gridfile
 
 First, we need to create a gridfile that describes our simulation domain.
@@ -157,6 +162,10 @@ gfortran -o gen_domain src/gen_domain.F90 -mkl -I${INC_NETCDF} -lnetcdff -lnetcd
 After the compilation you can execute `gen_domain` with $MAPFILE being one of the mapping files created in the step before (in `mkmapdata/`) and $GRIDNAME being a string with the name of your grid, e.g. `EUR-R13B05` for the ~12-km icosahedral grid.
 The choice of $MAPFILE does not influence the lat- and longitude values in the domain file but can influence the land/sea mask.
 
+**Hint:** For better reproducibility, specify the absolute path of
+`$MAPFILE`. The absolute path to the file can be printed using
+`realpath $MAPFILE`.
+
 ```
 ./gen_domain -m $MAPFILE -o $GRIDNAME -l $GRIDNAME -u $USER
 ```
@@ -166,8 +175,14 @@ The created domain file will later be modified.
 ## Creation of surface file
 
 The surface creation tool is found under `./mksurfdata/`.
-You have to compile it with gmake in src-directory.
 The required modules Intel and netCDF-Fortran are loaded by `jsc.2024_Intel.sh`.
+
+First, compile `mksurfdata_map` in src-directory:
+```
+# Inside ./mksurfdata/src
+gmake
+```
+Then check that `mksurfdata_map` is available inside `./mksurfdata/`.
 
 After compilation execute
 
@@ -199,23 +214,73 @@ The created surface and domain file have negative longitudes that CLM5 does not 
 
 ## Creation of forcing data from ERA5
 
-A possible source of atmospheric forcing for CLM5 is ERA5.
-The folder `mkforcing/` contains two scripts that assist the ERA5 retrieval.
-- `download_ERA5.py` contains a prepared retrieval for the cdsapi python module.
-By modifying the two loops inside the script it is possible to download ERA5 for any timerange.
-However, the script requires that cdsapi is installed with an user specific key.
-More information about the installation can be found [here](https://cds.climate.copernicus.eu/api-how-to).
-- `prepare_ERA5.sh` prepares ERA5 as an input by changing names and modifying units.
-ERA5 has to be regridded to your resolution before the script can be used.
+A possible source of atmospheric forcing for CLM (eCLM, CLM5, CLM3.5) is ERA5. It is safer to extract the lowermost level of temperature, humidity and wind of ERA5 instead of taking mixed 2m-values and 10m values. [This internal issue](https://gitlab.jsc.fz-juelich.de/HPSCTerrSys/tsmp-internal-development-tracking/-/issues/36) provides some details. The `download_ERA5_input.py` can be adapted to download another set of quantities.
 
-`download_ERA5_v2.py`, `prepare_ERA5_v2.sh` and `extract_ERA5_meteocloud.sh` provide an alternative pathway. [This issue](https://gitlab.jsc.fz-juelich.de/HPSCTerrSys/tsmp-internal-development-tracking/-/issues/36) provides some details. Basically it is safer to extract the lowermost level of temperature, humidity and wind of ERA5 instead of taking 2m-values. The workflow goes like this:
-
-```
-bash extract_ERA5_meteocloud.sh
-python download_ERA5_v2.py
-regridding
-bash prepare_ERA5_v2.sh
-```
+The folder `mkforcing/` contains three scripts that assist the ERA5 retrieval.
 
 Note: This worfklow is not fully tested.
+
+### Download of ERA5 data
+
+`download_ERA5_input.py` contains a prepared retrieval for the cdsapi python module.
+The script requires that cdsapi is installed with a user specific key (API access token).
+
+More information about the installation and access can be found [here](https://cds.climate.copernicus.eu/how-to-api) or alternatively [here](https://github.com/ecmwf/cdsapi?tab=readme-ov-file#install).
+
+Usage:
+Either directly:
+`python download_ERA5_input.py <year> <month> <output_directory>`
+Or using the wrapper script:
+`./download_ERA5_input_wrapper.sh`
+after changing dates and output directory in the `Settings` section inside this wrapper script.
+
+Non-JSC users should adapt the download script to include temperature, specific humidity and horizontal wind speed.
+
+### Preparation of ERA5 data I: Lowermost model level variables (10m altitude)
+`extract_ERA5_meteocloud.sh` prepares ERA5 variables form the
+lowermost model level (relies on JSC-local files).
+
+Uses level 137, for more information see
+https://confluence.ecmwf.int/display/UDOC/L137+model+level+definitions
+
+`extract_ERA5_meteocloud.sh` uses JSC-local grib-input files in
+`/p/data1/slmet/met_data/ecmwf/era5/grib/`. Further information:
+`/p/data1/slmet/met_data/ecmwf/README.md`.
+
+`extract_ERA5_meteocloud.sh` provides NetCDF files
+`meteocloud_YYYY_MM.nc` with lowermost model level atmospheric
+variables. The variables from these NetCDF files are used by
+`prepare_ERA5_input.sh` in the following ERA5 preparation step.
+
+Usage:
+Running the wrapper job
+`sbatch extract_ERA5_meteocloud_wrapper.job`
+after adapting `year` and `month` loops according to needed dates.
+
+### Preparation of ERA5 data II: Remapping, Data merging, CLM3.5
+`prepare_ERA5_input.sh` prepares ERA5 as an input by remapping the
+ERA5 data, changing names and modifying units.
+
+The script is divided into three parts, which could be handled
+separately.
+
+1. Remapping
+2. Merging the data
+3. CLM3.5 specific data preparation.
+
+If remapping is to be used, the remapping weights for the ERA data as
+well as the grid definition file of the target domain should be
+created beforehand. The following commands can be used to create the
+necessary files:
+
+```
+cdo gendis,<eclm_domainfile.nc> <era5caf_yyyy_mm.nc> <wgtdis_era5caf_to_domain.nc>
+cdo gendis,<eclm_domainfile.nc> <era5meteo_yyyy_mm.nc> <wgtdis_era5meteo_to_domain.nc>
+cdo griddes <eclm_domainfile.nc> > <domain_griddef.txt>
+```
+
+Usage: `sh prepare_ERA5_input.sh iyear=<year> imonth=<month>
+wgtcaf=<wgtcaf> wgtmeteo=<wgtmeteo> griddesfile=<griddesfile>` More
+options are available, see script for details.
+
 

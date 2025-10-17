@@ -38,11 +38,11 @@ do
     case "$GRIDNAME" in
       *"EUR-R13B"*)
         echo "Creating non-conservative remapping files for your icosahedral grid ${GRIDNAME}..."
-        srun $ESMFBIN_PATH/ESMF_RegridWeightGen --ignore_unmapped -s ${rawpath}/${file} -d $GRIDFILE -m bilinear --src_loc center --dst_loc center -w ${OUTPUT}/${OUTFILE} --dst_regional --netcdf4
+        srun $ESMFBIN_PATH/ESMF_RegridWeightGen --ignore_unmapped -s ${rawpath}/${file} -d $(realpath $GRIDFILE) -m bilinear --src_loc center --dst_loc center -w ${OUTPUT}/${OUTFILE} --dst_regional --netcdf4
         ;;
       *)
         echo "Creating conservative remapping files for your grid ${GRIDNAME}..."
-        srun $ESMFBIN_PATH/ESMF_RegridWeightGen --ignore_unmapped -s ${rawpath}/${file} -d $GRIDFILE -m conserve -w ${OUTPUT}/${OUTFILE} --dst_regional --netcdf4
+        srun $ESMFBIN_PATH/ESMF_RegridWeightGen --ignore_unmapped -s ${rawpath}/${file} -d $(realpath $GRIDFILE) -m conserve -w ${OUTPUT}/${OUTFILE} --dst_regional --netcdf4
         ;;
     esac
 done

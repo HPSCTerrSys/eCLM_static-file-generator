@@ -22,6 +22,7 @@ module load Python/3.11.3
 module load NCO/5.1.8
 module load CDO/2.3.0
 module load CMake/3.26.3
+module load UnZip/6.0
 #
 module load xarray/2023.8.0
 module load dask/2023.9.2
