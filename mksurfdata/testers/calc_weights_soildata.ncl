@@ -10,10 +10,10 @@ load "$NCARG_ROOT/lib/ncarg/nclscripts/esmf/ESMF_regridding.ncl"
 begin
 
 ; inputfile 
-   inFileName = "/p/project/cslts/poll1/preproc/TSMP_EU11/static.resource/02_Resample/SoilGrid_v2017/mksrf_soitex.10level.nc"
+   inFileName = "/p/project1/cslts/poll1/preproc/TSMP_EU11/static.resource/02_Resample/SoilGrid_v2017/mksrf_soitex.10level.nc"
 
 ; weightfile 
-   wgtFileName = "/p/project/cslts/poll1/eclm_coupling/CTSM/eu_11_eclm_curvilinear/mkmapdata/map_5x5min_IGBP-GSDP_to_EUR-R13B05_nomask_aave_da_c230629.nc"
+   wgtFileName = "/p/project1/cslts/poll1/eclm_coupling/CTSM/eu_11_eclm_curvilinear/mkmapdata/map_5x5min_IGBP-GSDP_to_EUR-R13B05_nomask_aave_da_c230629.nc"
 
 ; outfile
    outFileName = "soildata_soitex_fNCL.nc"

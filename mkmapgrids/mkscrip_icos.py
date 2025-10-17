@@ -27,23 +27,23 @@ def write_to_scrip(filename, center_lat, center_lon, corner_lat, corner_lon, mas
                                     dims=('grid_rank',)) 
     out.grid_dims.encoding = {'dtype': np.int32}
 
-    out['grid_center_lat'] = xr.DataArray(center_lat.T.reshape((-1,)).T, 
+    out['grid_center_lat'] = xr.DataArray(center_lat,
                                           dims=('grid_size'),
                                           attrs={'units': 'radians'})
 
-    out['grid_center_lon'] = xr.DataArray(center_lon.T.reshape((-1,)).T, 
+    out['grid_center_lon'] = xr.DataArray(center_lon,
                                           dims=('grid_size'),
                                           attrs={'units': 'radians'})
 
-    out['grid_corner_lat'] = xr.DataArray(corner_lat.T.reshape((3, -1)).T,
+    out['grid_corner_lat'] = xr.DataArray(corner_lat.T,
                                           dims=('grid_size','grid_corners'),
                                           attrs={'units': 'radians'})
 
-    out['grid_corner_lon'] = xr.DataArray(corner_lon.T.reshape((3, -1)).T,
+    out['grid_corner_lon'] = xr.DataArray(corner_lon.T,
                                           dims=('grid_size','grid_corners'),
                                           attrs={'units': 'radians'})
                                           
-    out['grid_imask'] = xr.DataArray(mask.reshape((-1,)), 
+    out['grid_imask'] = xr.DataArray(mask.reshape((-1,)),
                                      dims=('grid_size'),
                                      attrs={'units': 'unitless'})
     out.grid_imask.encoding = {'dtype': np.int32}

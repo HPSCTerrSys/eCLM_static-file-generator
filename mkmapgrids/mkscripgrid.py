@@ -116,16 +116,16 @@ latCorners = np.zeros((ny, nx, 4))
 for i in range(nx):
     lat[:, i] = latCenters
     latCorners[:, i, 0] = latCenters - delY/2.0
-    latCorners[:, i, 1] = latCenters + delY/2.0
+    latCorners[:, i, 1] = latCenters - delY/2.0
     latCorners[:, i, 2] = latCenters + delY/2.0
-    latCorners[:, i, 3] = latCenters - delY/2.0
+    latCorners[:, i, 3] = latCenters + delY/2.0
 
 for j in range(ny):
     lon[j, :] = lonCenters
     lonCorners[j, :, 0] = lonCenters - delX/2.0
-    lonCorners[j, :, 1] = lonCenters - delX/2.0
+    lonCorners[j, :, 1] = lonCenters + delX/2.0
     lonCorners[j, :, 2] = lonCenters + delX/2.0
-    lonCorners[j, :, 3] = lonCenters + delX/2.0
+    lonCorners[j, :, 3] = lonCenters - delX/2.0
 
 Mask2D = np.full((ny, nx), imask, dtype=int)
 gridSize = f"{delX}x{delY}"
