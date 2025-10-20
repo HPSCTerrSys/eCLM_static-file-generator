@@ -35,15 +35,15 @@ This means that ESMF mesh files are also able to describe unstructured grids.
 **Hint:** Once a static file generation is started, it is best
 practice to **not anymore copy or move the repository**. This ensures
 tracability of absolute paths, e.g. absolute paths of map files saved
-in the domain file as NetCDF attributes.
+in the domain file as netCDF attributes.
 
 ## Creation of gridfile
 
 First, we need to create a gridfile that describes our simulation domain.
 These come in two resolutions: ~12 km resolution (EUR-R13B05) and ~3 km resolution (EUR-R13B07).
 Choose one of these two grids if you want to use this with TSMP2.
-In this guide the default is EUR-R13B05, meaning that you will end up with all low-resolution static files on the icosahedral grid if you do not modify any of the following commands or scripts.
-For other purposes guidelines for the *rectilinear* and *curvilinear* are here as well.
+In this guide the default is EUR-R13B05, meaning that you will end up with all low-resolution static files on the *icosahedral* grid if you do not modify any of the following commands or scripts.
+For other purposes guidelines for the *rectilinear* and *curvilinear* grids are here as well.
 A curvilinear grid is normally used for CLM5, and when you run eCLM stand-alone you might choose to use a curvilinear grid as well.
 
 The relevant scripts to create the grid files are in `./mkmapgrids/`.
@@ -78,7 +78,7 @@ script `mkmapgrids/mkscripgrid.py`.
 For its usage, in particular setting inputs, please refer to the
 script itself.
 
-#### Rectilinar grid III: External Perl script from CTSM/CLM5 repo
+#### Rectilinear grid III: External Perl script from CTSM/CLM5 repo
 
 The following Perl script from CTSM/CLM5 provides an interface to
 similar functionality as the Python script
@@ -100,7 +100,7 @@ ncks -d rlat,3,434 -d rlon,3,446 $CSMDATA/detect_grid_specs/grids/EUR-11_450x438
 ncks -d rlat,3,1548 -d rlon,3,1596 $CSMDATA/detect_grid_specs/grids/EUR-0275_1600x1552_grid_inclbrz_v2.nc EUR-0275_1594x1546_grid_inclbrz_v2.nc
 ```
 
-At the moment SCRIP generation from *curvilinear grids* can be done and is tested to work with the NCAR Command Language (NCL), even though it is [deprecated](https://www.ncl.ucar.edu/open_letter_to_ncl_users.shtml).
+At the moment SCRIP generation from curvilinear grids can be done and is tested to work with the NCAR Command Language (NCL), even though it is [deprecated](https://www.ncl.ucar.edu/open_letter_to_ncl_users.shtml).
 NCL can be installed through Conda.
 If you have no Conda yet on your system, you can install it, including the conda-forge channel, following [this guide](https://github.com/conda-forge/miniforge?tab=readme-ov-file#unix-like-platforms-macos-linux--wsl).
 Then follow [this guide](https://yonsci.github.io/yon_academic/portfolio/portfolio-9/#installing-ncl) to install NCL.
@@ -114,7 +114,7 @@ ncl mkscrip_curv.ncl
 
 ### Icosahedral grid
 
-The atmospheric model  ICON runs on an *icosahedral grid*, sometimes called *triangular grid*.
+The atmospheric model ICON runs on an *icosahedral grid*, sometimes called *triangular grid*.
 The land model eCLM, when coupled to ICON (in TSMP2), also uses this grid.
 
 Check out https://zonda.ethz.ch/ for generating icosahedral input grids for `mkscrip_icos.py` (specified under option `--ifile`).
