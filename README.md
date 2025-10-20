@@ -109,7 +109,10 @@ It is not necessary to provide the corners because the internal routine of NCL s
 Adapt the variable `f` in `mkscrip_curv.ncl` to your gridfile and execute:
 
 ```
+conda activate NCL_environment
 ncl mkscrip_curv.ncl
+conda deactivate
+conda deactivate
 ```
 
 ### Icosahedral grid
