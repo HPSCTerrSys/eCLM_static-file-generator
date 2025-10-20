@@ -13,6 +13,13 @@ source jsc.2024_Intel.sh
 ```
 
 the necessary compilations in this repository can be performed consistently. It also contains the export of necessary paths for netCDF.
+If you are on a [JSC](https://www.fz-juelich.de/en/ias/jsc) machine, it will be very useful to set this data path:
+
+```
+export CSMDATA="/p/largedata2/detectdata/CentralDB/projects/z04"
+```
+
+If not, you'll have to get the relevant raw data at the respective steps and either set `$CSMDATA` to a different path or replace it with your respective local directory.
 
 To create all static files needed to run eCLM, you first need to create a gridfile, then mapping and domain files and only then you can create surface and forcing files.
 For this the grid has to be properly defined in one of the following formats:
@@ -44,7 +51,7 @@ The gridfile will contain arrays of longitudes and latitudes of the gridboxes' c
 The simulation domain is the EURO-CORDEX pan-European domain, which at high latitudes, for the Earth's canonical curvilinear grid, has significant convergence of the zonal dimension with increasing latitude.
 Therefore we *rotate* the grid (of a same size) centred at the equator to the pan-European domain.
 
-Grid files are available on the JSC machines in the DETECT CentralDB below `/p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/`.
+Grid files are available on the JSC machines in the DETECT CentralDB below `/p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/` (`$CSMDATA/detect_grid_specs/grids`).
 This is part of a Git repository that is also available [here](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification).
 
 ### Rectilinear grid
@@ -89,9 +96,8 @@ However, in eCLM we use a slightly smaller domain, so you must truncate the file
 
 ```
 cd mkmapgrids/
-export CSMDATA="/p/largedata2/detectdata/CentralDB/projects/z04"
 ncks -d rlat,3,434 -d rlon,3,446 $CSMDATA/detect_grid_specs/grids/EUR-11_450x438_grid_inclbrz13gp_v2.nc EUR-11_444x432_grid_inclbrz13gp_v2.nc
-ncks -d rlat,3,1548 -d rlon,3,1596 /p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/EUR-0275_1600x1552_grid_inclbrz_v2.nc EUR-0275_1594x1546_grid_inclbrz_v2.nc
+ncks -d rlat,3,1548 -d rlon,3,1596 $CSMDATA/detect_grid_specs/grids/EUR-0275_1600x1552_grid_inclbrz_v2.nc EUR-0275_1594x1546_grid_inclbrz_v2.nc
 ```
 
 At the moment SCRIP generation from *curvilinear grids* can be done and is tested to work with the NCAR Command Language (NCL), even though it is [deprecated](https://www.ncl.ucar.edu/open_letter_to_ncl_users.shtml).
@@ -152,7 +158,7 @@ In that case `runscript_mkmapdata.sh` decides to create a mapping file that bili
 ## Creation of domain files
 
 The CIME submodule under `./gen_domain_files/` generates the domain files for CLM.
-This repository contains a simplified version of `gen_domain` which is easier to compile on [JSC](https://www.fz-juelich.de/en/ias/jsc) machines and you do not need the CIME repository.
+This repository contains a simplified version of `gen_domain` which is easier to compile on JSC machines and you do not need the CIME repository.
 Required modules are imkl, netCDF and netCDF-Fortran (all provided by `jsc.2024_Intel.sh`).
 Then compile `src/gen_domain.F90` with
 
@@ -190,7 +196,6 @@ After compilation execute
 ```
 export GRIDNAME="EUR-R13B05"    # in case of the low-resolution icosahedral grid
 export CDATE="`date +%y%m%d`"   # should match mapping files creation date
-export CSMDATA="/p/largedata2/detectdata/CentralDB/projects/z04"
 
 # generate surfdata
 ./mksurfdata.pl -r usrspec -usr_gname $GRIDNAME -usr_gdate $CDATE -l $CSMDATA -allownofile -y 2005 -hirespft
