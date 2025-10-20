@@ -224,3 +224,6 @@ In a later step we are anyway going to replace variables in this file that are s
 ## Modification of the surface and domain file
 
 The created surface and domain file have negative longitudes that CLM5 does not accept and inherently has no landmask. To modify the longitudes and to add a landmask use `mod_domain.sh` after inserting the paths to your files.
+
+At least for TSMP2, further modification of the surface file is needed and not yet included in this (tested) workflow.
+The necessary replacement routines can be found in the `dev_replace_tsmp2` branch in the [`mksurfdata/`](https://github.com/HPSCTerrSys/eCLM_static-file-generator/tree/dev_replace_tsmp2/mksurfdata) directory.
