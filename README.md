@@ -130,6 +130,7 @@ For the creation of the mapping files of CLM inputdata to our grid use `mkmapdat
 Adjust the Slurm directives to your compute time project and partition.
 Below the Slurm directives, modify `GRIDNAME` and `GRIDFILE` to your grid and previously created SCRIP file.
 The script can be used on JURECA and JUWELS but it is advisable to use the large memory partitions for larger domains.
+The files are at JSC available below `$CSMDATA/lnd/clm2/mappingdata/grids/`.
 If you don't have access to the CLM mappingdata you have to download it.
 Use:
 
