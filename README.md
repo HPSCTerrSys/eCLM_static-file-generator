@@ -59,6 +59,7 @@ This is part of a Git repository that is also available [here](https://gitlab.js
 You can create a SCRIP file from a *rectilinear grid* with [`mkscrip_rect.py`](mkmapgrids/mkscrip_rect.py).
 The Python packages numpy, xarray and dask-expr need to be available.
 They are loaded by the [environment file](jsc.2024_Intel.sh) (sourced above).
+On machines without the modules from the environment file, you can install the Python packages with `pip3`, probably best in a [virtual environment](https://docs.python.org/3/library/venv.html), if they are not all available as a package in your operating system.
 The script was modified from `mesh_maker.py` from the CTSM repository to accept 2D lon / lat.
 The main caveat is that the resulting surface files are in 1D which makes them harder to handle.
 The python script `mkscrip_rect.py` can create SCRIP files including the calculation of corners.
@@ -188,11 +189,13 @@ The created domain file will later be modified.
 The surface creation tool is found under `./mksurfdata/`.
 The required modules Intel and netCDF-Fortran are loaded by `jsc.2024_Intel.sh`.
 
-First, compile `mksurfdata_map` in src-directory:
+First, compile `mksurfdata_map`:
+
 ```
-# Inside ./mksurfdata/src
+cd mksurfdata/src
 gmake
 ```
+
 Then check that `mksurfdata_map` is available inside `./mksurfdata/`.
 
 After compilation execute
@@ -210,7 +213,7 @@ Again, you need to have set $GRIDNAME, the date $CDATE in yymmdd format (matchin
 You have to download the data from https://svn-ccsm-inputdata.cgd.ucar.edu/trunk/inputdata/lnd/clm2/rawdata/ if you have no access to JSC machines.
 Also make sure that mksurfdata and mkmapdata have the same parent directory.
 
-At least in the original UCAR rawdata input files, not all variables are available (as the correct name).
+At least in the original UCAR rawdata input files, not all variables are available (under the correct name).
 Instead you can create the surface file with *mostly* constant values (apparently `SOIL_COLOR` is not homogeneous) with the following command.
 In a later step we are anyway going to replace variables in this file that are specific for eCLM (TSMP2).
 
