@@ -1,0 +1,16 @@
+# https://hpscterrsys.github.io/eCLM_static-file-generator
+
+format: jb-book
+root: INDEX
+parts:
+
+- caption: User's Guide
+  chapters:
+  - file: users_guide/README
+    title: Creating a custom case
+    sections:
+    - file: users_guide/1_create_grid_file
+    - file: users_guide/2_create_mapping_file
+    - file: users_guide/3_create_domain_file
+    - file: users_guide/4_create_surface_file
+    - file: users_guide/5_modifications_surface_domain_file
