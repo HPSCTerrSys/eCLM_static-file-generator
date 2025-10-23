@@ -2,9 +2,9 @@ name: eCLM static file generator Docs
 
 on:
   push:
-    branches: [ 'master' ]
+    branches: [ 'main' ]
   pull_request:
-    branches: [ 'master' ]
+    branches: [ 'main' ]
 
 env:
   BASE_URL: /${{ github.event.repository.name }}
