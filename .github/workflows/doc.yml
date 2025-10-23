@@ -24,7 +24,7 @@ jobs:
           submodules: false
           sparse-checkout: |
             .github
-            doc
+            docs
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
