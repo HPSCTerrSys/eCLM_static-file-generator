@@ -44,7 +44,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: "docs/_build/html"
-          name: tsmp2_eclm_static_fiele_generator_docs
+          name: tsmp2_eclm_static_file_generator_docs
 
   deploy:
     if: github.event_name != 'pull_request'
@@ -64,4 +64,4 @@ jobs:
       id: deployment
       uses: actions/deploy-pages@v4
       with:
-        artifact_name: tsmp2_eclm_static_fiele_generator_docs
+        artifact_name: tsmp2_eclm_static_file_generator_docs
