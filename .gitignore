@@ -3,3 +3,5 @@
 *.mod
 *.nc
 *.swp
+*.o
+*.mod
