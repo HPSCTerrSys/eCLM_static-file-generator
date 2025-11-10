@@ -211,3 +211,10 @@ In a later step we are anyway going to replace variables in this file that are s
 ## Modification of the surface and domain file
 
 The created surface and domain file have negative longitudes that CLM5 does not accept and inherently has no landmask. To modify the longitudes and to add a landmask use `mod_domain.sh` after inserting the paths to your files.
+
+Additional surface file processing is implemented in:
+
+```
+replace_surfdata.py  # For BGC mode, updates landcover using GLC2000 and soils using SOILGRIDS. 
+```
+

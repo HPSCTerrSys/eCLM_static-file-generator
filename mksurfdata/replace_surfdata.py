@@ -60,7 +60,6 @@ print("Max sum_natpft:", np.nanmax(sum_natpft))
 print("Min sum_crop:", np.nanmin(sum_crop))
 print("Max sum_crop:", np.nanmax(sum_crop))
 
- 
 mask = sum_natpft > 0
 natpft[:, mask] = natpft[:, mask] * (100.0 / sum_natpft[mask])
 open_clm5["PCT_NAT_PFT"].values = natpft
