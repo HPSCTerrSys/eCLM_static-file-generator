@@ -13,6 +13,13 @@ source jsc.2024_Intel.sh
 ```
 
 the necessary compilations in this repository can be performed consistently. It also contains the export of necessary paths for netCDF.
+If you are on a [JSC](https://www.fz-juelich.de/en/ias/jsc) machine, it will be very useful to set this data path:
+
+```
+export CSMDATA="/p/largedata2/detectdata/CentralDB/projects/z04"
+```
+
+If not, you'll have to get the relevant raw data at the respective steps and either set `$CSMDATA` to a different path or replace it with your respective local directory.
 
 To create all static files needed to run eCLM, you first need to create a gridfile, then mapping and domain files and only then you can create surface and forcing files.
 For this the grid has to be properly defined in one of the following formats:
@@ -28,15 +35,15 @@ This means that ESMF mesh files are also able to describe unstructured grids.
 **Hint:** Once a static file generation is started, it is best
 practice to **not anymore copy or move the repository**. This ensures
 tracability of absolute paths, e.g. absolute paths of map files saved
-in the domain file as NetCDF attributes.
+in the domain file as netCDF attributes.
 
 ## Creation of gridfile
 
 First, we need to create a gridfile that describes our simulation domain.
 These come in two resolutions: ~12 km resolution (EUR-R13B05) and ~3 km resolution (EUR-R13B07).
 Choose one of these two grids if you want to use this with TSMP2.
-In this guide the default is EUR-R13B05, meaning that you will end up with all low-resolution static files on the icosahedral grid if you do not modify any of the following commands or scripts.
-For other purposes guidelines for the *rectilinear* and *curvilinear* are here as well.
+In this guide the default is EUR-R13B05, meaning that you will end up with all low-resolution static files on the *icosahedral* grid if you do not modify any of the following commands or scripts.
+For other purposes guidelines for the *rectilinear* and *curvilinear* grids are here as well.
 A curvilinear grid is normally used for CLM5, and when you run eCLM stand-alone you might choose to use a curvilinear grid as well.
 
 The relevant scripts to create the grid files are in `./mkmapgrids/`.
@@ -44,7 +51,7 @@ The gridfile will contain arrays of longitudes and latitudes of the gridboxes' c
 The simulation domain is the EURO-CORDEX pan-European domain, which at high latitudes, for the Earth's canonical curvilinear grid, has significant convergence of the zonal dimension with increasing latitude.
 Therefore we *rotate* the grid (of a same size) centred at the equator to the pan-European domain.
 
-Grid files are available on the JSC machines in the DETECT CentralDB below `/p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/`.
+Grid files are available on the JSC machines in the DETECT CentralDB below `/p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/` (`$CSMDATA/detect_grid_specs/grids`).
 This is part of a Git repository that is also available [here](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification).
 
 ### Rectilinear grid
@@ -52,6 +59,7 @@ This is part of a Git repository that is also available [here](https://gitlab.js
 You can create a SCRIP file from a *rectilinear grid* with [`mkscrip_rect.py`](mkmapgrids/mkscrip_rect.py).
 The Python packages numpy, xarray and dask-expr need to be available.
 They are loaded by the [environment file](jsc.2024_Intel.sh) (sourced above).
+On machines without the modules from the environment file, you can install the Python packages with `pip3`, probably best in a [virtual environment](https://docs.python.org/3/library/venv.html), if they are not all available as a package in your operating system.
 The script was modified from `mesh_maker.py` from the CTSM repository to accept 2D lon / lat.
 The main caveat is that the resulting surface files are in 1D which makes them harder to handle.
 The python script `mkscrip_rect.py` can create SCRIP files including the calculation of corners.
@@ -71,7 +79,7 @@ script `mkmapgrids/mkscripgrid.py`.
 For its usage, in particular setting inputs, please refer to the
 script itself.
 
-#### Rectilinar grid III: External Perl script from CTSM/CLM5 repo
+#### Rectilinear grid III: External Perl script from CTSM/CLM5 repo
 
 The following Perl script from CTSM/CLM5 provides an interface to
 similar functionality as the Python script
@@ -89,12 +97,11 @@ However, in eCLM we use a slightly smaller domain, so you must truncate the file
 
 ```
 cd mkmapgrids/
-export CSMDATA="/p/largedata2/detectdata/CentralDB/projects/z04"
 ncks -d rlat,3,434 -d rlon,3,446 $CSMDATA/detect_grid_specs/grids/EUR-11_450x438_grid_inclbrz13gp_v2.nc EUR-11_444x432_grid_inclbrz13gp_v2.nc
-ncks -d rlat,3,1548 -d rlon,3,1596 /p/largedata2/detectdata/CentralDB/projects/z04/detect_grid_specs/grids/EUR-0275_1600x1552_grid_inclbrz_v2.nc EUR-0275_1594x1546_grid_inclbrz_v2.nc
+ncks -d rlat,3,1548 -d rlon,3,1596 $CSMDATA/detect_grid_specs/grids/EUR-0275_1600x1552_grid_inclbrz_v2.nc EUR-0275_1594x1546_grid_inclbrz_v2.nc
 ```
 
-At the moment SCRIP generation from *curvilinear grids* can be done and is tested to work with the NCAR Command Language (NCL), even though it is [deprecated](https://www.ncl.ucar.edu/open_letter_to_ncl_users.shtml).
+At the moment SCRIP generation from curvilinear grids can be done and is tested to work with the NCAR Command Language (NCL), even though it is [deprecated](https://www.ncl.ucar.edu/open_letter_to_ncl_users.shtml).
 NCL can be installed through Conda.
 If you have no Conda yet on your system, you can install it, including the conda-forge channel, following [this guide](https://github.com/conda-forge/miniforge?tab=readme-ov-file#unix-like-platforms-macos-linux--wsl).
 Then follow [this guide](https://yonsci.github.io/yon_academic/portfolio/portfolio-9/#installing-ncl) to install NCL.
@@ -103,12 +110,15 @@ It is not necessary to provide the corners because the internal routine of NCL s
 Adapt the variable `f` in `mkscrip_curv.ncl` to your gridfile and execute:
 
 ```
+conda activate NCL_environment
 ncl mkscrip_curv.ncl
+conda deactivate
+conda deactivate
 ```
 
 ### Icosahedral grid
 
-The atmospheric model  ICON runs on an *icosahedral grid*, sometimes called *triangular grid*.
+The atmospheric model ICON runs on an *icosahedral grid*, sometimes called *triangular grid*.
 The land model eCLM, when coupled to ICON (in TSMP2), also uses this grid.
 
 Check out https://zonda.ethz.ch/ for generating icosahedral input grids for `mkscrip_icos.py` (specified under option `--ifile`).
@@ -130,6 +140,7 @@ For the creation of the mapping files of CLM inputdata to our grid use `mkmapdat
 Adjust the Slurm directives to your compute time project and partition.
 Below the Slurm directives, modify `GRIDNAME` and `GRIDFILE` to your grid and previously created SCRIP file.
 The script can be used on JURECA and JUWELS but it is advisable to use the large memory partitions for larger domains.
+The files are at JSC available below `$CSMDATA/lnd/clm2/mappingdata/grids/`.
 If you don't have access to the CLM mappingdata you have to download it.
 Use:
 
@@ -151,7 +162,7 @@ In that case `runscript_mkmapdata.sh` decides to create a mapping file that bili
 ## Creation of domain files
 
 The CIME submodule under `./gen_domain_files/` generates the domain files for CLM.
-This repository contains a simplified version of `gen_domain` which is easier to compile on [JSC](https://www.fz-juelich.de/en/ias/jsc) machines and you do not need the CIME repository.
+This repository contains a simplified version of `gen_domain` which is easier to compile on JSC machines and you do not need the CIME repository.
 Required modules are imkl, netCDF and netCDF-Fortran (all provided by `jsc.2024_Intel.sh`).
 Then compile `src/gen_domain.F90` with
 
@@ -159,6 +170,7 @@ Then compile `src/gen_domain.F90` with
 gfortran -o gen_domain src/gen_domain.F90 -mkl -I${INC_NETCDF} -lnetcdff -lnetcdf
 ```
 
+If the Intel Math Kernel Library (MKL) is not available on your system, you can remove the `-mkl` flag without consequences for the output.
 After the compilation you can execute `gen_domain` with $MAPFILE being one of the mapping files created in the step before (in `mkmapdata/`) and $GRIDNAME being a string with the name of your grid, e.g. `EUR-R13B05` for the ~12-km icosahedral grid.
 The choice of $MAPFILE does not influence the lat- and longitude values in the domain file but can influence the land/sea mask.
 
@@ -177,11 +189,13 @@ The created domain file will later be modified.
 The surface creation tool is found under `./mksurfdata/`.
 The required modules Intel and netCDF-Fortran are loaded by `jsc.2024_Intel.sh`.
 
-First, compile `mksurfdata_map` in src-directory:
+First, compile `mksurfdata_map`:
+
 ```
-# Inside ./mksurfdata/src
+cd mksurfdata/src
 gmake
 ```
+
 Then check that `mksurfdata_map` is available inside `./mksurfdata/`.
 
 After compilation execute
@@ -189,7 +203,6 @@ After compilation execute
 ```
 export GRIDNAME="EUR-R13B05"    # in case of the low-resolution icosahedral grid
 export CDATE="`date +%y%m%d`"   # should match mapping files creation date
-export CSMDATA="/p/largedata2/detectdata/CentralDB/projects/z04"
 
 # generate surfdata
 ./mksurfdata.pl -r usrspec -usr_gname $GRIDNAME -usr_gdate $CDATE -l $CSMDATA -allownofile -y 2005 -hirespft
@@ -200,7 +213,7 @@ Again, you need to have set $GRIDNAME, the date $CDATE in yymmdd format (matchin
 You have to download the data from https://svn-ccsm-inputdata.cgd.ucar.edu/trunk/inputdata/lnd/clm2/rawdata/ if you have no access to JSC machines.
 Also make sure that mksurfdata and mkmapdata have the same parent directory.
 
-At least in the original UCAR rawdata input files, not all variables are available (as the correct name).
+At least in the original UCAR rawdata input files, not all variables are available (under the correct name).
 Instead you can create the surface file with *mostly* constant values (apparently `SOIL_COLOR` is not homogeneous) with the following command.
 In a later step we are anyway going to replace variables in this file that are specific for eCLM (TSMP2).
 
@@ -212,9 +225,11 @@ In a later step we are anyway going to replace variables in this file that are s
 
 The created surface and domain file have negative longitudes that CLM5 does not accept and inherently has no landmask. To modify the longitudes and to add a landmask use `mod_domain.sh` after inserting the paths to your files.
 
+At least for TSMP2, further modification of the surface file is needed and not yet included in this (tested) workflow.
+The necessary replacement routines can be found in the `dev_replace_tsmp2` branch in the [`mksurfdata/`](https://github.com/HPSCTerrSys/eCLM_static-file-generator/tree/dev_replace_tsmp2/mksurfdata) directory.
+
 Additional surface file processing is implemented in:
 
 ```
 replace_surfdata.py  # For BGC mode, updates landcover using GLC2000 and soils using SOILGRIDS. 
 ```
-

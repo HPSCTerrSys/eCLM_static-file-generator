@@ -3,5 +3,4 @@
 *.mod
 *.nc
 *.swp
-*.o
-*.mod
+docs/_build/*
