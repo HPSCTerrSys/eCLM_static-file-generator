@@ -227,3 +227,9 @@ The created surface and domain file have negative longitudes that CLM5 does not 
 
 At least for TSMP2, further modification of the surface file is needed and not yet included in this (tested) workflow.
 The necessary replacement routines can be found in the `dev_replace_tsmp2` branch in the [`mksurfdata/`](https://github.com/HPSCTerrSys/eCLM_static-file-generator/tree/dev_replace_tsmp2/mksurfdata) directory.
+
+Additional surface file processing is implemented in:
+
+```
+replace_surfdata.py  # For BGC mode, updates landcover using GLC2000 and soils using SOILGRIDS. 
+```
