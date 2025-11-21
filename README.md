@@ -140,19 +140,30 @@ For the creation of the mapping files of CLM inputdata to our grid use `mkmapdat
 Adjust the Slurm directives to your compute time project and partition.
 Below the Slurm directives, modify `GRIDNAME` and `GRIDFILE` to your grid and previously created SCRIP file.
 The script can be used on JURECA and JUWELS but it is advisable to use the large memory partitions for larger domains.
+
 The files are at JSC available below `$CSMDATA/lnd/clm2/mappingdata/grids/`.
 If you don't have access to the CLM mappingdata you have to download it.
-Use:
 
+There are two possible ways to download the grids
+
+1. Use:
 ```
 wget --no-check-certificate -i clm_mappingfiles.txt
 ```
-Then start the creation of the weights with
+
+2. Run `download_grids.sh` after adapting inputs (in particular the
+   path `myraw`).
+```
+./download_grids.sh
+```
+
+When all grids are downloaded, start the creation of the weights with
 ```
 sbatch runscript_mkmapdata.sh
 ```
 
-This will create regridding and netCDF mapping files in the current directory.
+This will create regridding and netCDF mapping files in the current
+directory.
 
 ### Icosahedral grid
 
