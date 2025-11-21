@@ -232,6 +232,7 @@ In a later step we are anyway going to replace variables in this file that are s
 ./mksurfdata.pl -r usrspec -usr_gname $GRIDNAME -usr_gdate $CDATE -l $CSMDATA -allownofile -y 2005 -hirespft -usr_mapdir="../mkmapdata/" -no-crop -pft_idx 13 -pft_frc 100 -soil_cly 60 -soil_col 10 -soil_fmx 0.5 -soil_snd 40
 ```
 
+
 ## Modification of the surface and domain file
 
 The created surface and domain file have negative longitudes that CLM5 does not accept and inherently has no landmask. To modify the longitudes and to add a landmask use `mod_domain.sh` after inserting the paths to your files.
@@ -239,8 +240,17 @@ The created surface and domain file have negative longitudes that CLM5 does not 
 At least for TSMP2, further modification of the surface file is needed and not yet included in this (tested) workflow.
 The necessary replacement routines can be found in the `dev_replace_tsmp2` branch in the [`mksurfdata/`](https://github.com/HPSCTerrSys/eCLM_static-file-generator/tree/dev_replace_tsmp2/mksurfdata) directory.
 
-Additional surface file processing is implemented in:
+
+## Surface File: Use landcover GLC2000 and soil texture from SOILGRIDS
+
+Only for BGC mode!
+
+The following script updates landcover using GLC2000 and soils using SOILGRIDS.
 
 ```
-replace_surfdata.py  # For BGC mode, updates landcover using GLC2000 and soils using SOILGRIDS. 
+replace_surfdata.py
 ```
+
+Additionally, this script checks CLM gridcells to make sure the
+percentages per landunit in each gridcell sum up to one.
+
