@@ -151,8 +151,8 @@ There are two possible ways to download the grids
 wget --no-check-certificate -i clm_mappingfiles.txt
 ```
 
-2. Run `download_grids.sh` after adapting inputs (in particular the
-   path `myraw`).
+2. Run `download_grids.sh` after adapting inputs (in particular the path `myraw`).
+   You need Subversion (`svn`) for this.
 ```
 ./download_grids.sh
 ```

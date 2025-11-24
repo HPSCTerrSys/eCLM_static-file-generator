@@ -1,9 +1,10 @@
-#!/bin/bash -l
+#!/usr/bin/env bash
+set -e
 
 ### URL base for the grids
 SVNBASE="https://svn-ccsm-inputdata.cgd.ucar.edu/trunk/inputdata/lnd/clm2/mappingdata/grids"
 
-### Local directory 
+### Local directory
 myraw="$PWD/download_grids"
 mkdir -p "$myraw"
 
@@ -34,8 +35,7 @@ for file in "${files[@]}"; do
   url="${SVNBASE}/${file}"
   if [ ! -f "$localf" ]; then
     echo "Downloading $file ..."
-    # wget -O "$localf" "$url" || { echo "ERROR downloading $url"; exit 1; }
-    svn export "$url" "$localf" || { echo "ERROR exporting $url"; exit 1; }
+    svn export "$url" "$localf"
   else
     echo "File $file already exists — skipping download."
   fi
