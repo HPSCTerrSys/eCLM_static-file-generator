@@ -248,7 +248,7 @@ Only for BGC mode!
 The following script updates landcover using GLC2000 and soils using SOILGRIDS.
 
 ```
-replace_surfdata.py
+./replace_surfdata.py
 ```
 
 Additionally, this script checks CLM gridcells to make sure the

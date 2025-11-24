@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import xarray as xr
 import numpy as np
 # import sys
