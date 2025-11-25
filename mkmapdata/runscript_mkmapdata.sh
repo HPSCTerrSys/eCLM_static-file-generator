@@ -42,7 +42,21 @@ do
         ;;
       *)
         echo "Creating conservative remapping files for your grid ${GRIDNAME}..."
-        srun $ESMFBIN_PATH/ESMF_RegridWeightGen --ignore_unmapped -s ${rawpath}/${file} -d $(realpath $GRIDFILE) -m conserve -w ${OUTPUT}/${OUTFILE} --dst_regional --netcdf4
+
+	# Conservative remapping: Explicitly specify UGRID source type
+	#
+	# ESMF can automatically detect grid types (SCRIP, UGRID,
+	# etc.). The explicit specification may be more reliable for
+	# UGRID files.
+	#
+	# See: https://earthsystemmodeling.org/docs/release/latest/ESMF_refdoc/node3.html#SECTION03020000000000000000
+	if [[ "$file" == UGRID* ]]; then
+	  SRCTYPE="--src_type UGRID"
+	else
+	  SRCTYPE=""
+	fi
+
+        srun $ESMFBIN_PATH/ESMF_RegridWeightGen --ignore_unmapped -s ${rawpath}/${file} -d $(realpath $GRIDFILE) -m conserve $SRCTYPE -w ${OUTPUT}/${OUTFILE} --dst_regional --netcdf4
         ;;
     esac
 done
