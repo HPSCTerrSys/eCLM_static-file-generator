@@ -54,7 +54,7 @@ do
 	else
 	  SRCTYPE=""
 	fi
-	
+
         srun $ESMFBIN_PATH/ESMF_RegridWeightGen --ignore_unmapped -s ${rawpath}/${file} -d $(realpath $GRIDFILE) -m conserve $SRCTYPE -w ${OUTPUT}/${OUTFILE} --dst_regional --netcdf4
         ;;
     esac
