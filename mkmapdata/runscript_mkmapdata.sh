@@ -43,12 +43,13 @@ do
       *)
         echo "Creating conservative remapping files for your grid ${GRIDNAME}..."
 
-	# Conservative remapping: Specify UGRID source type
+	# Conservative remapping: Explicitly specify UGRID source type
 	#
-	# In general automatic detection should work:
-	# https://earthsystemmodeling.org/docs/release/latest/ESMF_refdoc/node3.html#SECTION03020000000000000000
+	# ESMF can automatically detect grid types (SCRIP, UGRID,
+	# etc.). The explicit specification may be more reliable for
+	# UGRID files.
 	#
-	# This overrides the automatic detection.
+	# See: https://earthsystemmodeling.org/docs/release/latest/ESMF_refdoc/node3.html#SECTION03020000000000000000
 	if [[ "$file" == UGRID* ]]; then
 	  SRCTYPE="--src_type UGRID"
 	else
