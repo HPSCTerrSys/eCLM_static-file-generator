@@ -49,7 +49,7 @@ do
 	# https://earthsystemmodeling.org/docs/release/latest/ESMF_refdoc/node3.html#SECTION03020000000000000000
 	#
 	# This overrides the automatic detection.
-	if [[ "$basename" == UGRID* ]]; then
+	if [[ "$file" == UGRID* ]]; then
 	  SRCTYPE="--src_type UGRID"
 	else
 	  SRCTYPE=""
