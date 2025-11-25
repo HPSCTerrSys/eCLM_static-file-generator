@@ -35,6 +35,7 @@ for file in "${files[@]}"; do
   url="${SVNBASE}/${file}"
   if [ ! -f "$localf" ]; then
     echo "Downloading $file ..."
+    # wget -O "$localf" "$url"
     svn export "$url" "$localf"
   else
     echo "File $file already exists — skipping download."
