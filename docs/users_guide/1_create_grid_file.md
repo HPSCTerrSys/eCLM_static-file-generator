@@ -17,9 +17,9 @@ This is part of a Git repository that is also available [here](https://gitlab.js
 
 ## Rectilinear grid ##
 
-You can create a SCRIP file from a *rectilinear grid* with [`mkscrip_rect.py`](../../mkmapgrids/mkscrip_rect.py).
+You can create a SCRIP file from a *rectilinear grid* with `mkscrip_rect.py`.
 The Python packages numpy, xarray and dask-expr need to be available.
-They are loaded by the [environment file](../../jsc.2024_Intel.sh) (sourced above).
+They are loaded by the environment file `jsc.2024_Intel.sh` (sourced above).
 On machines without the modules from the environment file, you can install the Python packages with `pip3`, probably best in a [virtual environment](https://docs.python.org/3/library/venv.html), if they are not all available as a package in your operating system.
 The script was modified from `mesh_maker.py` from the CTSM repository to accept 2D lon / lat.
 The main caveat is that the resulting surface files are in 1D which makes them harder to handle.
@@ -66,7 +66,7 @@ At the moment SCRIP generation from curvilinear grids can be done and is tested 
 NCL can be installed through Conda.
 If you have no Conda yet on your system, you can install it, including the conda-forge channel, following [this guide](https://github.com/conda-forge/miniforge?tab=readme-ov-file#unix-like-platforms-macos-linux--wsl).
 Then follow [this guide](https://yonsci.github.io/yon_academic/portfolio/portfolio-9/#installing-ncl) to install NCL.
-The repository contains the NCL-script [`mkscrip_curv.ncl`](../../mkmapgrids/mkscrip_curv.ncl) that can create a SCRIP file from a netCDF that contains the lat- and lon-center coordinates.
+The repository contains the NCL-script `mkscrip_curv.ncl` that can create a SCRIP file from a netCDF that contains the lat- and lon-center coordinates.
 It is not necessary to provide the corners because the internal routine of NCL seems to calculate them correctly for the later steps.
 Adapt the variable `f` in `mkscrip_curv.ncl` to your gridfile and execute:
 
@@ -84,7 +84,7 @@ The land model eCLM, when coupled to ICON (in TSMP2), also uses this grid.
 
 Check out https://zonda.ethz.ch/ for generating icosahedral input grids for `mkscrip_icos.py` (specified under option `--ifile`).
 
-Then convert your ICON gridfile to the SCRIP format with the python script [`mkscrip_icos.py`](../../mkmapgrids/mkscrip_icos.py):
+Then convert your ICON gridfile to the SCRIP format with the python script `mkscrip_icos.py`:
 
 ```
 ./mkscrip_icos.py --ifile EUR-R13B05_199920_grid_inclbrz_v2.nc --ofile EUR-R13B05_199920_grid_SCRIP.nc
