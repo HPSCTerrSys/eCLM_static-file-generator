@@ -1,5 +1,7 @@
 # eCLM static file generator
 
+[![docs](https://github.com/HPSCTerrSys/eCLM_static-file-generator/actions/workflows/doc.yml/badge.svg)](https://github.com/HPSCTerrSys/eCLM_static-file-generator/actions/workflows/doc.yml)
+
 ## Introduction
 
 This repository shows how to generate curvilinear surface and domain fields for eCLM simulations.
