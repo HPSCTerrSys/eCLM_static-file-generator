@@ -1,4 +1,42 @@
-# Create surface file
+# Creation of surface file #
+
+The surface creation tool is found under `./mksurfdata/`.
+The required modules Intel and netCDF-Fortran are loaded by `jsc.2024_Intel.sh`.
+
+First, compile `mksurfdata_map`:
+
+```
+cd mksurfdata/src
+gmake
+```
+
+Then check that `mksurfdata_map` is available inside `./mksurfdata/`.
+
+After compilation execute
+
+```
+export GRIDNAME="EUR-R13B05"    # in case of the low-resolution icosahedral grid
+export CDATE="`date +%y%m%d`"   # should match mapping files creation date
+
+# generate surfdata
+./mksurfdata.pl -r usrspec -usr_gname $GRIDNAME -usr_gdate $CDATE -l $CSMDATA -allownofile -y 2005 -hirespft
+```
+
+to create a real domain with hires pft.
+Again, you need to have set $GRIDNAME, the date $CDATE in yymmdd format (matching the mapping files) and the path $CSMDATA where the raw data of CLM is stored.
+You have to download the data from https://svn-ccsm-inputdata.cgd.ucar.edu/trunk/inputdata/lnd/clm2/rawdata/ if you have no access to JSC machines.
+Also make sure that mksurfdata and mkmapdata have the same parent directory.
+
+At least in the original UCAR rawdata input files, not all variables are available (under the correct name).
+Instead you can create the surface file with *mostly* constant values (apparently `SOIL_COLOR` is not homogeneous) with the following command.
+In a later step we are anyway going to replace variables in this file that are specific for eCLM (TSMP2).
+
+```
+./mksurfdata.pl -r usrspec -usr_gname $GRIDNAME -usr_gdate $CDATE -l $CSMDATA -allownofile -y 2005 -hirespft -usr_mapdir="../mkmapdata/" -no-crop -pft_idx 13 -pft_frc 100 -soil_cly 60 -soil_col 10 -soil_fmx 0.5 -soil_snd 40
+```
+
+
+# Create surface file (old)
 
 In this step you will create the surface data file using the `mksurfdata.pl` script.
 First, we will compile the script with `make` in the `mksurfdata/src` directory.
