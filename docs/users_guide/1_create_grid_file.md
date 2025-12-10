@@ -100,7 +100,7 @@ Further information about the DETECT grid specification can be found [here](http
 
 The first step in creating your input data is to define your model domain and the grid resolution you want to model in. There are several options to create the SCRIP grid file that holds this information:
 1. Using the `mkscripgrid.py` script to create a regular latitude longitude grid.
-2. Using the `produce_scrip_from_griddata.ncl` script to convert an existing netCDF file that holds the latidude and longitude centers of your grid in 2D (This allows you to create a curvilinear grid). 
+2. Using the `produce_scrip_from_griddata.ncl` script to convert an existing netCDF file that holds the latidude and longitude centers of your grid in 2D (This allows you to create a curvilinear grid).
 3. Similar to the first option but using the `scrip_mesh.py` script to create the SCRIP grid file.
 
 To start the SCRIP grid file creation navigate into the `mkmapgrids` directory where you will find the above mentioned scripts.

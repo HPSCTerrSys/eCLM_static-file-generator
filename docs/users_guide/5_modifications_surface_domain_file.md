@@ -34,8 +34,8 @@ Before executing the script adapt the paths to your [surface file](https://hpsct
 
 ## Modifying surface parameters
 
-You may want to modify the default soil, landuse or other land surface data on the surface file if you have measurements or a different data source of higher resolution or similar available. 
-You can do this by accessing the relevant variables on the surface file. 
+You may want to modify the default soil, landuse or other land surface data on the surface file if you have measurements or a different data source of higher resolution or similar available.
+You can do this by accessing the relevant variables on the surface file.
 
 Variables you want to modify may include (non-exhaustive list):
 
@@ -44,7 +44,7 @@ Soil:
 - `PCT_CLAY`: percentage clay at soil levels (10 levels are considered)
 - `ORGANIC`: organic matter density at soil levels (10 levels are considered)
 
-Landuse at the landunit level ([Fig. 2](https://hpscterrsys.github.io/eCLM/users_guide/introduction_to_eCLM/introduction.html#fig2)): 
+Landuse at the landunit level ([Fig. 2](https://hpscterrsys.github.io/eCLM/users_guide/introduction_to_eCLM/introduction.html#fig2)):
 - `PCT_NATVEG`: total percentage of natural vegetation landunit
 - `PCT_CROP`: total percentage of crop landunit
 - `PCT_URBAN`: total percentage of urban landunit
