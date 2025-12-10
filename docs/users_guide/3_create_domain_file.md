@@ -23,7 +23,8 @@ The choice of $MAPFILE does not influence the lat- and longitude values in the d
 
 The created domain file will later be modified.
 
-# Create domain file (old)
+<details>
+<summary><strong>Create domain file (old) - Click to expand</strong></summary>
 
 In this step you will create the domain file for your case using `gen_domain`. First, you need to navigate into the `gen_domain_files/src/` directory and compile it with the loaded modules ifort, imkl, netCDF and netCDF-Fortran.
 
@@ -60,3 +61,5 @@ mv temp.nc domain.ocn."your gridname"_"your gridname"."yymmdd".nc
 ```
 
 **Congratulations!** You successfully created your domain files and can now move on to the final next step to create your surface data.
+
+</details>

@@ -31,8 +31,8 @@ practice to **not anymore copy or move the repository**. This ensures
 tracability of absolute paths, e.g. absolute paths of map files saved
 in the domain file as netCDF attributes.
 
-
-# Creating a custom case (old)
+<details>
+<summary><strong> Creating a custom case (old)  - Click to expand</strong></summary>
 
 This workflow will guide you through creating your own input datasets at a resolution of your choice for eCLM simulations.
 
@@ -66,3 +66,6 @@ You are now ready to start with the workflow.
 
 ```{tableofcontents}
 ```
+
+</details>
+

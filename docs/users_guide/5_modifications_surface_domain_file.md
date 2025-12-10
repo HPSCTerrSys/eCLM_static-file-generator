@@ -21,10 +21,11 @@ Additionally, this script checks CLM gridcells to make sure the
 percentages per landunit in each gridcell sum up to one.
 
 
-# Modification of the surface and domain file (old)
+<details>
+<summary><strong>Modification of the surface and domain file (old) - Click to expand</strong></summary>
 
 
-## Handling negative longitudes and the landmask
+**Handling negative longitudes and the landmask**
 
 eCLM does not accept negative longitudes for the surface and domain file. In case you used a grid file to create your SCRIP grid file which used negative longitudes (instead of creating it through the `mkscripgrid.py` script), these need to be converted into the 0 to 360 degree system used by eCLM. You can use the `mod_domain.sh` script in the main directory `eCLM_static_file_workflow` to do this.
 
@@ -32,7 +33,7 @@ Before executing the script adapt the paths to your [surface file](https://hpsct
 
 `mod_domain.sh` also replaces the `mask` and `frac` variables of your domain file with the information from a `landmask_file` (this `landmask.nc` file should contain the 2D variables `mask` and `frac` that contain your landmask (value 1 for land and 0 for ocean)). This step should not be necessary as you already swapped the `domain.lnd.*.nc` and `domain.ocn.*.nc` file when creating them. However, for some domains (e.g. the ICON grid) the mask from the rawdata may not correctly represent your landmask. Additionally, if you want to replace the surface parameters with higher resolution data (see below), you may need to update the landmask as well to match your surface parameters (e.g. coast lines may have changed).
 
-## Modifying surface parameters
+**Modifying surface parameters**
 
 You may want to modify the default soil, landuse or other land surface data on the surface file if you have measurements or a different data source of higher resolution or similar available.
 You can do this by accessing the relevant variables on the surface file.
@@ -60,3 +61,5 @@ Types of crop and natural vegetation at the patch level ([Fig. 2](https://hpscte
 Land fraction:
 - `LANDFRAC_PFT`: land fraction from PFT dataset
 - `PFTDATA_MASK`: land mask from pft dataset, indicative of real/fake points
+
+</details>

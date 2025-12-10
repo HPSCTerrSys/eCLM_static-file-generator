@@ -36,7 +36,8 @@ In a later step we are anyway going to replace variables in this file that are s
 ```
 
 
-# Create surface file (old)
+<details>
+<summary><strong>Create surface file (old) - Click to expand</strong></summary>
 
 In this step you will create the surface data file using the `mksurfdata.pl` script.
 First, we will compile the script with `make` in the `mksurfdata/src` directory.
@@ -79,3 +80,5 @@ You will see a "Successfully created fsurdat files" message displayed at the end
 The output will be a netCDF file similar to `surfdata_"your grid name"_hist_78pfts_CMIP6_simyr2000_c"yymmdd".nc`.
 
 **Congratulations!** You successfully created your surface data file! In the next step you will learn how to create your own atmospheric forcings.
+
+</details>

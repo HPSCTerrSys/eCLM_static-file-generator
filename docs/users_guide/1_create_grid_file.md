@@ -96,7 +96,8 @@ If you want a high-resolution icosahedral grid, use `EUR-R13B07_2473796_grid_inc
 Further information about the DETECT grid specification can be found [here](https://gitlab.jsc.fz-juelich.de/detect/detect_z03_z04/detect_grid_specification).
 
 
-# Create SCRIP grid file (old)
+<details>
+<summary><strong>Create SCRIP grid file (old) - Click to expand</strong></summary>
 
 The first step in creating your input data is to define your model domain and the grid resolution you want to model in. There are several options to create the SCRIP grid file that holds this information:
 1. Using the `mkscripgrid.py` script to create a regular latitude longitude grid.
@@ -109,7 +110,10 @@ To start the SCRIP grid file creation navigate into the `mkmapgrids` directory w
 cd mkmapgrids
 ```
 
-## 1. Create SCRIP grid file with `mkscripgrid.py`
+</details>
+
+<details>
+<summary><strong>1. Create SCRIP grid file with `mkscripgrid.py` - Click to expand</strong></summary>
 
 To use `mkscripgrid.py`, first open the script (for example using vim text editor) and adapt the variables that describe your grid. These include your grid name, the four corner points of your model domain as well as the resolution (lines 42-50 of the script). Then you can execute the script:
 
@@ -123,7 +127,10 @@ The `mkscripgrid.py` script requires numpy and netCDF4 python libraries to be in
 
 The output will be a SCRIP grid netCDF file containing the grid dimension and the center and corners for each grid point. It will have the format `SCRIPgrid_"Your grid name"_nomask_c"yymmdd".nc`
 
-## 2. Create SCRIP grid file from griddata with `produce_scrip_from_griddata.ncl`
+</details>
+
+<details>
+<summary><strong>2. Create SCRIP grid file from griddata with `produce_scrip_from_griddata.ncl` - Click to expand</strong></summary>
 
 Unfortunately, NCL is not maintained anymore in the new software stages. Therefore, in order to use it you first need to load an older Stage and the required software modules:
 
@@ -140,7 +147,11 @@ Next, adapt the input in `produce_scrip_from_griddata.ncl` to your gridfile.This
 ncl produce_scrip_from_griddata.ncl
 ```
 
-## 3. Create SCRIP grid file from griddata using `scrip_mesh.py`
+</details>
+
+<details>
+<summary><strong> 3. Create SCRIP grid file from griddata using `scrip_mesh.py` - Click to expand</strong></summary>
+
 
 Alternatively to the first option, you can use the python script `scrip_mesh.py`. Like the ncl script it can create SCRIP files including the calculation of corners. It takes command line arguments like this:
 
@@ -151,3 +162,5 @@ python3 scrip_mesh.py --ifile NC_FILE.nc --ofile OUTPUT_SCRIP.nc --oformat SCRIP
 ---
 
 **Congratulations!** You successfully created your SCRIP grid file and can now move on to the next step.
+
+</details>

@@ -34,7 +34,8 @@ directory.
 Experience has shown that conservative remapping does not always work for icosahedral grids (EUR-R13B05 and EUR-R13B07).
 In that case `runscript_mkmapdata.sh` decides to create a mapping file that bilinearly interpolates fields.
 
-# Create mapping files (old)
+<details>
+<summary><strong>Create mapping files (old) - Click to expand</strong></summary>
 
 To start the mapping file creation navigate into the `mkmapdata` directory where you will find the script needed for this step.
 
@@ -73,3 +74,5 @@ export MAPFILE="path to your mapfiles"/"name of one of your map files"
 ---
 
 **Congratulations!** You successfully created your mapping files and can now move on to the next step.
+
+</details>
