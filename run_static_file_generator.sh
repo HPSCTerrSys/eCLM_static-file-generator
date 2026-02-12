@@ -5,21 +5,25 @@ BASEDIR="$(cd "$(dirname "$0")" && pwd)"
 
 usage() {
     cat <<EOF
-Usage: $0 --ptname NAME --slat S_LAT --nlat N_LAT --elon E_LON --wlon W_LON --nx NX --ny NY [--imask IMASK]
+Usage: $0 --ptname NAME --slat S_LAT --nlat N_LAT --elon E_LON --wlon W_LON --nx NX --ny NY --account ACCOUNT --partition PARTITION [--imask IMASK]
 
 Create all eCLM static files for a rectilinear grid in one go.
 
 Required arguments (passed to mkscripgrid.py):
-  --ptname   Grid name
-  --slat     South latitude  [-90, 90]
-  --nlat     North latitude  [-90, 90]
-  --elon     East longitude  [0, 360)
-  --wlon     West longitude  [0, 360)
-  --nx       Number of grid points along longitude
-  --ny       Number of grid points along latitude
+  --ptname      Grid name
+  --slat        South latitude  [-90, 90]
+  --nlat        North latitude  [-90, 90]
+  --elon        East longitude  [0, 360)
+  --wlon        West longitude  [0, 360)
+  --nx          Number of grid points along longitude
+  --ny          Number of grid points along latitude
+
+Required SLURM arguments (for mapping file creation):
+  --account     SLURM account/project
+  --partition   SLURM partition (e.g. mem192)
 
 Optional:
-  --imask    Mask type (default: 1, 1=nomask, 0=noocean)
+  --imask       Mask type (default: 1, 1=nomask, 0=noocean)
 
 Environment variables:
   CSMDATA    Path to CLM raw data (required)
@@ -29,6 +33,7 @@ EOF
 
 # --- Parse arguments ---
 PTNAME="" S_LAT="" N_LAT="" E_LON="" W_LON="" NX="" NY="" IMASK=1
+ACCOUNT="" PARTITION=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -39,13 +44,15 @@ while [[ $# -gt 0 ]]; do
         --wlon)   W_LON="$2";  shift 2 ;;
         --nx)     NX="$2";     shift 2 ;;
         --ny)     NY="$2";     shift 2 ;;
-        --imask)  IMASK="$2";  shift 2 ;;
+        --imask)     IMASK="$2";     shift 2 ;;
+        --account)   ACCOUNT="$2";   shift 2 ;;
+        --partition) PARTITION="$2"; shift 2 ;;
         -h|--help) usage ;;
         *) echo "Unknown argument: $1"; usage ;;
     esac
 done
 
-for var in PTNAME S_LAT N_LAT E_LON W_LON NX NY; do
+for var in PTNAME S_LAT N_LAT E_LON W_LON NX NY ACCOUNT PARTITION; do
     if [[ -z "${!var}" ]]; then
         echo "Error: --$(echo $var | tr '[:upper:]' '[:lower:]' | tr '_' '-') is required"
         usage
@@ -99,6 +106,8 @@ echo "=== Step 2: Creating mapping files (SLURM job) ==="
 TMPSCRIPT="$(mktemp "$BASEDIR/mkmapdata/runscript_mkmapdata_tmp_XXXX.sh")"
 sed -e "s|^export GRIDNAME=.*|export GRIDNAME=\"${GRIDNAME}\"|" \
     -e "s|^export GRIDFILE=.*|export GRIDFILE=\"${GRIDFILE_PATH}\"|" \
+    -e "s|^#SBATCH --account=.*|#SBATCH --account=${ACCOUNT}|" \
+    -e "s|^#SBATCH --partition=.*|#SBATCH --partition=${PARTITION}|" \
     "$BASEDIR/mkmapdata/runscript_mkmapdata.sh" > "$TMPSCRIPT"
 
 (cd "$BASEDIR/mkmapdata" && sbatch --wait "$TMPSCRIPT") || {
