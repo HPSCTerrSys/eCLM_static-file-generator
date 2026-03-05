@@ -1,4 +1,4 @@
 numpy
 matplotlib
 netCDF4
-cartopy
+cartopy  # optional – required for domain/site location maps; skipped gracefully if absent

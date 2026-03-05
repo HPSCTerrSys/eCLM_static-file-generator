@@ -202,6 +202,160 @@ def get_1d_array(var):
     return np.squeeze(data)
 
 
+# =============================================================================
+# Grid-type detection
+# =============================================================================
+
+def detect_grid_type(nc):
+    """Return True if the file contains a regional (multi-cell) grid."""
+    return nc.dimensions['lsmlat'].size > 1 or nc.dimensions['lsmlon'].size > 1
+
+
+# =============================================================================
+# Regional data helpers
+# =============================================================================
+
+def get_field_2d(var):
+    """Return a 2-D (nlat, nlon) float array for a (lsmlat, lsmlon) variable.
+    Any leading singleton dimensions are squeezed away."""
+    data = var[:]
+    if hasattr(data, 'mask'):
+        data = np.ma.filled(data, np.nan)
+    return np.array(np.squeeze(data), dtype=float)
+
+
+def _robust_clim(data):
+    """Return (vmin, vmax) clipped to the 2nd-98th percentile of finite values."""
+    finite = data[np.isfinite(data)]
+    if finite.size == 0:
+        return 0.0, 1.0
+    vmin = float(np.percentile(finite, 2))
+    vmax = float(np.percentile(finite, 98))
+    if vmin == vmax:
+        vmin -= 0.5
+        vmax += 0.5
+    return vmin, vmax
+
+
+def plot_map(ax, data2d, lons2d, lats2d, title, units, cmap='viridis'):
+    """Plot a 2-D spatial field using pcolormesh with a colourbar."""
+    vmin, vmax = _robust_clim(data2d)
+    pcm = ax.pcolormesh(lons2d, lats2d, data2d, cmap=cmap,
+                        vmin=vmin, vmax=vmax, shading='auto')
+    plt.colorbar(pcm, ax=ax, label=units, fraction=0.046, pad=0.04)
+    ax.set_title(title, fontsize=10, fontweight='bold')
+    ax.set_xlabel('Lon (\u00b0E)', fontsize=7)
+    ax.set_ylabel('Lat (\u00b0N)', fontsize=7)
+    ax.tick_params(labelsize=7)
+
+
+def plot_diff_map(ax, diff2d, lons2d, lats2d, title, units):
+    """Plot a difference field (file2 - file1) with a symmetric diverging colourmap."""
+    finite = diff2d[np.isfinite(diff2d)]
+    vmax = float(np.percentile(np.abs(finite), 98)) if finite.size else 1.0
+    if vmax == 0:
+        vmax = 1.0
+    pcm = ax.pcolormesh(lons2d, lats2d, diff2d, cmap='RdBu_r',
+                        vmin=-vmax, vmax=vmax, shading='auto')
+    plt.colorbar(pcm, ax=ax, label=units, fraction=0.046, pad=0.04)
+    ax.set_title(title, fontsize=10, fontweight='bold')
+    ax.set_xlabel('Lon (\u00b0E)', fontsize=7)
+    ax.set_ylabel('Lat (\u00b0N)', fontsize=7)
+    ax.tick_params(labelsize=7)
+
+
+def plot_map_grid(data_list, titles, lons2d, lats2d, suptitle,
+                  units=None, cmap='viridis', ncols=3, cell_size=(4.2, 3.2)):
+    """Create a grid of 2-D spatial maps.
+
+    units : str or list of str (one per map)
+    cmap  : str or list of str (one per map)
+    """
+    n = len(data_list)
+    if n == 0:
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.text(0.5, 0.5, 'No data', ha='center', va='center', transform=ax.transAxes)
+        ax.axis('off')
+        return fig
+    units_list = ([units] * n) if (units is None or isinstance(units, str)) else list(units)
+    if units is None:
+        units_list = [''] * n
+    cmap_list = [cmap] * n if isinstance(cmap, str) else list(cmap)
+    nrows = max(1, (n + ncols - 1) // ncols)
+    fig, axes = plt.subplots(nrows, ncols,
+                             figsize=(ncols * cell_size[0], nrows * cell_size[1]),
+                             squeeze=False)
+    axes_flat = axes.flatten()
+    for i in range(n):
+        plot_map(axes_flat[i], data_list[i], lons2d, lats2d,
+                 titles[i], units_list[i], cmap=cmap_list[i])
+    for i in range(n, len(axes_flat)):
+        axes_flat[i].axis('off')
+    fig.suptitle(suptitle, fontsize=14, fontweight='bold')
+    plt.tight_layout()
+    return fig
+
+
+def create_domain_map_figure(lons2d, lats2d, figsize=(10, 7)):
+    """Create a domain overview map with the bounding box highlighted.
+    Returns None if cartopy is not available."""
+    if not HAS_CARTOPY:
+        return None
+    lon_min = float(np.nanmin(lons2d))
+    lon_max = float(np.nanmax(lons2d))
+    lat_min = float(np.nanmin(lats2d))
+    lat_max = float(np.nanmax(lats2d))
+    margin_lon = max(2.0, (lon_max - lon_min) * 0.15)
+    margin_lat = max(2.0, (lat_max - lat_min) * 0.15)
+    title = (f'Domain Extent  '
+             f'{lon_min:.2f}\u00b0\u2013{lon_max:.2f}\u00b0E, '
+             f'{lat_min:.2f}\u00b0\u2013{lat_max:.2f}\u00b0N  '
+             f'({lons2d.shape[1]}\u00d7{lons2d.shape[0]} cells)')
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
+    extent = [lon_min - margin_lon, lon_max + margin_lon,
+              lat_min - margin_lat, lat_max + margin_lat]
+    ax.set_extent(extent, crs=ccrs.PlateCarree())
+    ax.add_feature(cfeature.OCEAN.with_scale('50m'), facecolor='#c8e6f5')
+    ax.add_feature(cfeature.LAND.with_scale('50m'), facecolor='#f2efe8')
+    ax.add_feature(cfeature.COASTLINE.with_scale('50m'), linewidth=0.8, edgecolor='#555555')
+    ax.add_feature(cfeature.BORDERS.with_scale('50m'), linewidth=0.7, edgecolor='#888888')
+    ax.add_feature(cfeature.LAKES.with_scale('50m'), facecolor='#c8e6f5', alpha=0.8)
+    ax.add_feature(cfeature.RIVERS.with_scale('50m'), linewidth=0.4, edgecolor='#6baed6', alpha=0.6)
+    ax.plot([lon_min, lon_max, lon_max, lon_min, lon_min],
+            [lat_min, lat_min, lat_max, lat_max, lat_min],
+            color='#e53e3e', linewidth=2.5, transform=ccrs.PlateCarree(), zorder=5)
+    gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
+                      linewidth=0.5, color='gray', alpha=0.5, linestyle='--')
+    gl.top_labels = False
+    gl.right_labels = False
+    ax.set_title(title, fontsize=12, fontweight='bold')
+    return fig
+
+
+def plot_monthly_timeseries_regional(ax, data, pft_indices, title, units,
+                                     pft_names, land_mask):
+    """Plot monthly time series for selected PFTs as spatial means over land cells."""
+    colors = plt.cm.tab10(np.linspace(0, 1, max(len(pft_indices), 1)))
+    for pft_idx, color in zip(pft_indices, colors):
+        values = np.array([
+            float(np.nanmean(np.where(land_mask, data[m, pft_idx, :, :], np.nan)))
+            for m in range(12)
+        ])
+        if np.any(values > 0):
+            label = pft_names.get(pft_idx, f'PFT {pft_idx}')
+            if len(label) > 25:
+                label = label[:22] + '...'
+            ax.plot(range(12), values, marker='o', label=label, color=color, linewidth=2)
+    ax.set_xticks(range(12))
+    ax.set_xticklabels(MONTH_NAMES)
+    ax.set_xlabel('Month')
+    ax.set_ylabel(f'[{units}] (spatial mean)')
+    ax.set_title(title, fontsize=12, fontweight='bold')
+    ax.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=7)
+    ax.grid(alpha=0.3)
+
+
 def create_scalar_card(ax, name, value, units, long_name):
     """Create a card-style visualization for a scalar variable."""
     ax.set_xlim(0, 10)
@@ -445,7 +599,7 @@ def create_site_location_figure(lons, lats, labels=None, zoom_margin=10, figsize
     return fig
 
 
-def create_html_report(figures_data, nc_file, output_dir):
+def create_html_report(figures_data, nc_file, output_dir, metadata_str=''):
     """Generate an HTML report with all figures embedded."""
 
     html_template = """<!DOCTYPE html>
@@ -617,8 +771,7 @@ def create_html_report(figures_data, nc_file, output_dir):
             <div class="metadata">
                 <strong>Source File:</strong> {nc_file}<br>
                 <strong>Generated:</strong> {timestamp}<br>
-                <strong>Site:</strong> BE-Lon (Belgium - Lonzee)<br>
-                <strong>Coordinates:</strong> {lon:.3f}E, {lat:.3f}N
+                {metadata_str}
             </div>
         </header>
 
@@ -671,15 +824,10 @@ def create_html_report(figures_data, nc_file, output_dir):
         </section>
         """
 
-    # Get coordinates from the first figure data
-    lon = figures_data[0].get('lon', 0)
-    lat = figures_data[0].get('lat', 0)
-
     html_content = html_template.format(
         nc_file=os.path.basename(nc_file),
         timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        lon=lon,
-        lat=lat,
+        metadata_str=metadata_str,
         nav_links=nav_links_html,
         sections=sections_html
     )
@@ -722,9 +870,34 @@ def main(nc_file):
     print(f"Reading NetCDF file: {nc_file}")
     nc = Dataset(nc_file, 'r')
 
-    # Get coordinates
-    lon = get_scalar_value(nc.variables['LONGXY'])
-    lat = get_scalar_value(nc.variables['LATIXY'])
+    # Detect grid type
+    is_regional = detect_grid_type(nc)
+    print(f"Grid mode: {'regional' if is_regional else 'single-site'}")
+
+    # Get coordinates / domain info
+    if is_regional:
+        lons = get_field_2d(nc.variables['LONGXY'])
+        lats = get_field_2d(nc.variables['LATIXY'])
+        lon_min = float(np.nanmin(lons))
+        lon_max = float(np.nanmax(lons))
+        lat_min = float(np.nanmin(lats))
+        lat_max = float(np.nanmax(lats))
+        # Land mask for spatial averages
+        if 'LANDFRAC_PFT' in nc.variables:
+            land_mask = get_field_2d(nc.variables['LANDFRAC_PFT']) > 0
+        elif 'PFTDATA_MASK' in nc.variables:
+            land_mask = get_field_2d(nc.variables['PFTDATA_MASK']).astype(bool)
+        else:
+            land_mask = np.ones(lons.shape, dtype=bool)
+        metadata_str = (f'<strong>Mode:</strong> Regional grid '
+                        f'({lons.shape[1]}\u00d7{lons.shape[0]} cells)<br>'
+                        f'<strong>Domain:</strong> '
+                        f'{lon_min:.2f}\u00b0\u2013{lon_max:.2f}\u00b0E, '
+                        f'{lat_min:.2f}\u00b0\u2013{lat_max:.2f}\u00b0N')
+    else:
+        lon = get_scalar_value(nc.variables['LONGXY'])
+        lat = get_scalar_value(nc.variables['LATIXY'])
+        metadata_str = f'<strong>Coordinates:</strong> {lon:.3f}\u00b0E, {lat:.3f}\u00b0N'
 
     figures_data = []
 
@@ -734,60 +907,108 @@ def main(nc_file):
     print("Creating Section 1: Location and Basic Parameters...")
     section1_figures = []
 
-    # Figure 1.0: Site location map
-    fig_map = create_site_location_figure([lon], [lat])
-    if fig_map is not None:
-        pdf_path = os.path.join(pdf_dir, '00_site_location.pdf')
-        fig_map.savefig(pdf_path, bbox_inches='tight')
+    if is_regional:
+        # Domain overview map
+        fig_map = create_domain_map_figure(lons, lats)
+        if fig_map is not None:
+            pdf_path = os.path.join(pdf_dir, '00_domain_overview.pdf')
+            fig_map.savefig(pdf_path, bbox_inches='tight')
+            section1_figures.append({
+                'pdf_name': os.path.basename(pdf_path),
+                'caption': (f'Domain extent: {lon_min:.2f}\u00b0\u2013{lon_max:.2f}\u00b0E, '
+                            f'{lat_min:.2f}\u00b0\u2013{lat_max:.2f}\u00b0N '
+                            f'({lons.shape[1]}\u00d7{lons.shape[0]} cells).'),
+                'base64': fig_to_base64(fig_map)
+            })
+            plt.close(fig_map)
+
+        # Grid of basic parameter maps
+        basic_map_vars = [
+            ('AREA',      'km\u00b2',    'viridis'),
+            ('FMAX',      'unitless',    'Blues'),
+            ('SOIL_COLOR','index',       'tab20b'),
+            ('zbedrock',  'm',           'copper'),
+            ('SLOPE',     'degrees',     'YlOrRd'),
+            ('STD_ELEV',  'm',           'terrain'),
+            ('LAKEDEPTH', 'm',           'Blues'),
+            ('peatf',     'fraction',    'Greens'),
+            ('gdp',       'unitless',    'YlOrBr'),
+        ]
+        data_list, titles_list, units_list, cmaps_list = [], [], [], []
+        for var_name, units_str, cmap_str in basic_map_vars:
+            if var_name in nc.variables:
+                d = get_field_2d(nc.variables[var_name])
+                if d.ndim == 2:
+                    data_list.append(d)
+                    titles_list.append(var_name)
+                    units_list.append(units_str)
+                    cmaps_list.append(cmap_str)
+        fig = plot_map_grid(data_list, titles_list, lons, lats,
+                            'Basic Parameters \u2013 Spatial Distribution',
+                            units=units_list, cmap=cmaps_list, ncols=3)
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '01_basic_parameters.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
         section1_figures.append({
             'pdf_name': os.path.basename(pdf_path),
-            'caption': f'Political map showing the site location at {lon:.3f}°E, {lat:.3f}°N.',
-            'base64': fig_to_base64(fig_map)
+            'caption': 'Spatial maps of basic parameters: area, FMAX, soil colour, bedrock depth, slope, elevation std, lake depth, peatland fraction, GDP.',
+            'base64': fig_to_base64(fig)
         })
-        plt.close(fig_map)
+        plt.close(fig)
 
-    # Figure 1.1: Location and basic info
-    fig, axes = plt.subplots(3, 4, figsize=(16, 12))
-    fig.suptitle('Basic Site Parameters', fontsize=16, fontweight='bold')
+    else:
+        # Figure 1.0: Site location map
+        fig_map = create_site_location_figure([lon], [lat])
+        if fig_map is not None:
+            pdf_path = os.path.join(pdf_dir, '00_site_location.pdf')
+            fig_map.savefig(pdf_path, bbox_inches='tight')
+            section1_figures.append({
+                'pdf_name': os.path.basename(pdf_path),
+                'caption': f'Political map showing the site location at {lon:.3f}\u00b0E, {lat:.3f}\u00b0N.',
+                'base64': fig_to_base64(fig_map)
+            })
+            plt.close(fig_map)
 
-    scalar_vars = [
-        ('LONGXY', 'degrees east'),
-        ('LATIXY', 'degrees north'),
-        ('AREA', 'km^2'),
-        ('FMAX', 'unitless'),
-        ('SOIL_COLOR', 'index'),
-        ('mxsoil_color', 'unitless'),
-        ('zbedrock', 'm'),
-        ('SLOPE', 'degrees'),
-        ('STD_ELEV', 'm'),
-        ('LAKEDEPTH', 'm'),
-        ('gdp', 'unitless'),
-        ('abm', 'month')
-    ]
+        # Figure 1.1: Location and basic info
+        fig, axes = plt.subplots(3, 4, figsize=(16, 12))
+        fig.suptitle('Basic Site Parameters', fontsize=16, fontweight='bold')
 
-    for ax, (var_name, units) in zip(axes.flatten(), scalar_vars):
-        var = nc.variables[var_name]
-        value = get_scalar_value(var)
-        long_name = var.long_name if hasattr(var, 'long_name') else var_name
-        create_scalar_card(ax, var_name, value, units, long_name)
+        scalar_vars = [
+            ('LONGXY', 'degrees east'),
+            ('LATIXY', 'degrees north'),
+            ('AREA', 'km^2'),
+            ('FMAX', 'unitless'),
+            ('SOIL_COLOR', 'index'),
+            ('mxsoil_color', 'unitless'),
+            ('zbedrock', 'm'),
+            ('SLOPE', 'degrees'),
+            ('STD_ELEV', 'm'),
+            ('LAKEDEPTH', 'm'),
+            ('gdp', 'unitless'),
+            ('abm', 'month')
+        ]
 
-    plt.tight_layout()
-    pdf_path = os.path.join(pdf_dir, '01_basic_parameters.pdf')
-    fig.savefig(pdf_path, bbox_inches='tight')
-    section1_figures.append({
-        'pdf_name': os.path.basename(pdf_path),
-        'caption': 'Basic site parameters including location, area, soil color, bedrock depth, slope, and economic indicators.',
-        'base64': fig_to_base64(fig)
-    })
-    plt.close(fig)
+        for ax, (var_name, units) in zip(axes.flatten(), scalar_vars):
+            var = nc.variables[var_name]
+            value = get_scalar_value(var)
+            long_name = var.long_name if hasattr(var, 'long_name') else var_name
+            create_scalar_card(ax, var_name, value, units, long_name)
+
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '01_basic_parameters.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section1_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Basic site parameters including location, area, soil color, bedrock depth, slope, and economic indicators.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
     figures_data.append({
         'id': 'basic-params',
-        'title': 'Basic Site Parameters',
+        'title': 'Basic Site Parameters' if not is_regional else 'Domain Overview & Basic Parameters',
         'description': 'Fundamental parameters describing the site location, topography, and basic soil/lake properties.',
         'figures': section1_figures,
-        'lon': lon,
-        'lat': lat
     })
 
     # =========================================================================
@@ -796,47 +1017,94 @@ def main(nc_file):
     print("Creating Section 2: Land Cover Fractions...")
     section2_figures = []
 
-    # Figure 2.1: Major land cover pie chart
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    if is_regional:
+        # Spatial maps of major land cover fractions
+        lc_vars = [
+            ('PCT_NATVEG',  'Natural Vegetation (%)',  'Greens'),
+            ('PCT_CROP',    'Cropland (%)',             'YlOrBr'),
+            ('PCT_LAKE',    'Lake (%)',                 'Blues'),
+            ('PCT_WETLAND', 'Wetland (%)',              'PuBuGn'),
+            ('PCT_GLACIER', 'Glacier (%)',              'cool'),
+        ]
+        data_list, titles_list, units_list, cmaps_list = [], [], [], []
+        for var_name, title_str, cmap_str in lc_vars:
+            if var_name in nc.variables:
+                data_list.append(get_field_2d(nc.variables[var_name]))
+                titles_list.append(title_str)
+                units_list.append('%')
+                cmaps_list.append(cmap_str)
+        # Total urban (sum over density classes)
+        if 'PCT_URBAN' in nc.variables:
+            pct_urban_3d = np.array(nc.variables['PCT_URBAN'][:])
+            if hasattr(pct_urban_3d, 'mask'):
+                pct_urban_3d = np.ma.filled(pct_urban_3d, 0.0)
+            data_list.append(pct_urban_3d.sum(axis=0))
+            titles_list.append('Urban total (%)')
+            units_list.append('%')
+            cmaps_list.append('Reds')
+        fig = plot_map_grid(data_list, titles_list, lons, lats,
+                            'Land Cover Fractions \u2013 Spatial Distribution',
+                            units=units_list, cmap=cmaps_list, ncols=3)
+        pdf_path = os.path.join(pdf_dir, '02_land_cover_maps.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section2_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Spatial maps of land cover fractions: natural vegetation, cropland, lake, wetland, glacier, and total urban.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
-    # Major land units
-    pct_natveg = get_scalar_value(nc.variables['PCT_NATVEG'])
-    pct_crop = get_scalar_value(nc.variables['PCT_CROP'])
-    pct_urban = np.sum(get_1d_array(nc.variables['PCT_URBAN']))
-    pct_lake = get_scalar_value(nc.variables['PCT_LAKE'])
-    pct_wetland = get_scalar_value(nc.variables['PCT_WETLAND'])
-    pct_glacier = get_scalar_value(nc.variables['PCT_GLACIER'])
+        # Also store domain-mean land values for use in later sections
+        pct_natveg = float(np.nanmean(np.where(land_mask, get_field_2d(nc.variables['PCT_NATVEG']), np.nan)))
+        pct_crop   = float(np.nanmean(np.where(land_mask, get_field_2d(nc.variables['PCT_CROP']),   np.nan)))
+        pct_urban_arr = data_list[titles_list.index('Urban total (%)')]
+        pct_urban  = np.array([
+            float(np.nanmean(np.where(land_mask, get_field_2d(nc.variables['PCT_URBAN'])[i], np.nan)))
+            for i in range(nc.variables['PCT_URBAN'].shape[0])
+        ])
 
-    land_labels = ['Natural Vegetation', 'Cropland', 'Urban', 'Lake', 'Wetland', 'Glacier']
-    land_values = np.array([pct_natveg, pct_crop, pct_urban, pct_lake, pct_wetland, pct_glacier])
+    else:
+        # Figure 2.1: Major land cover pie chart
+        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
-    plot_pie_chart(axes[0], land_labels, land_values, 'Major Land Cover Types', min_pct=0.1)
+        pct_natveg = get_scalar_value(nc.variables['PCT_NATVEG'])
+        pct_crop   = get_scalar_value(nc.variables['PCT_CROP'])
+        pct_urban  = get_1d_array(nc.variables['PCT_URBAN'])
+        pct_lake    = get_scalar_value(nc.variables['PCT_LAKE'])
+        pct_wetland = get_scalar_value(nc.variables['PCT_WETLAND'])
+        pct_glacier = get_scalar_value(nc.variables['PCT_GLACIER'])
 
-    # Land fractions bar chart
-    axes[1].bar(land_labels, land_values, color=['#48bb78', '#ecc94b', '#a0aec0', '#4299e1', '#9f7aea', '#63b3ed'],
-                edgecolor='#2d3748')
-    axes[1].set_ylabel('Percent (%)')
-    axes[1].set_title('Land Cover Distribution', fontsize=12, fontweight='bold')
-    axes[1].tick_params(axis='x', rotation=45)
-    for i, v in enumerate(land_values):
-        if v > 0:
-            axes[1].text(i, v + 1, f'{v:.1f}%', ha='center', fontsize=9)
-    axes[1].grid(axis='y', alpha=0.3)
+        land_labels = ['Natural Vegetation', 'Cropland', 'Urban', 'Lake', 'Wetland', 'Glacier']
+        land_values = np.array([pct_natveg, pct_crop, np.sum(pct_urban),
+                                pct_lake, pct_wetland, pct_glacier])
 
-    plt.tight_layout()
-    pdf_path = os.path.join(pdf_dir, '02_land_cover_major.pdf')
-    fig.savefig(pdf_path, bbox_inches='tight')
-    section2_figures.append({
-        'pdf_name': os.path.basename(pdf_path),
-        'caption': 'Distribution of major land cover types: natural vegetation, cropland, urban, lake, wetland, and glacier.',
-        'base64': fig_to_base64(fig)
-    })
-    plt.close(fig)
+        plot_pie_chart(axes[0], land_labels, land_values, 'Major Land Cover Types', min_pct=0.1)
+
+        axes[1].bar(land_labels, land_values,
+                    color=['#48bb78', '#ecc94b', '#a0aec0', '#4299e1', '#9f7aea', '#63b3ed'],
+                    edgecolor='#2d3748')
+        axes[1].set_ylabel('Percent (%)')
+        axes[1].set_title('Land Cover Distribution', fontsize=12, fontweight='bold')
+        axes[1].tick_params(axis='x', rotation=45)
+        for i, v in enumerate(land_values):
+            if v > 0:
+                axes[1].text(i, v + 1, f'{v:.1f}%', ha='center', fontsize=9)
+        axes[1].grid(axis='y', alpha=0.3)
+
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '02_land_cover_major.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section2_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Distribution of major land cover types: natural vegetation, cropland, urban, lake, wetland, and glacier.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
     figures_data.append({
         'id': 'land-cover',
         'title': 'Land Cover Fractions',
-        'description': 'Overview of land surface cover type distribution. Key variables for understanding the dominant land use at the site.',
+        'description': 'Overview of land surface cover type distribution.',
         'figures': section2_figures
     })
 
@@ -846,45 +1114,94 @@ def main(nc_file):
     print("Creating Section 3: Natural PFT Distribution...")
     section3_figures = []
 
-    fig, axes = plt.subplots(1, 2, figsize=(16, 7))
+    if is_regional:
+        pct_nat_pft_data = np.array(nc.variables['PCT_NAT_PFT'][:], dtype=float)
+        if hasattr(nc.variables['PCT_NAT_PFT'][:], 'mask'):
+            pct_nat_pft_data = np.ma.filled(nc.variables['PCT_NAT_PFT'][:], np.nan)
+        n_natpft = pct_nat_pft_data.shape[0]
 
-    # Get PCT_NAT_PFT data
-    pct_nat_pft = get_1d_array(nc.variables['PCT_NAT_PFT'])
-    natpft_labels = [NATPFT_NAMES.get(i, f'PFT {i}') for i in range(15)]
+        # Maps for PFTs present anywhere in the domain (max > 1%)
+        active_idx = [i for i in range(n_natpft)
+                      if np.nanmax(pct_nat_pft_data[i]) > 1.0]
+        data_list  = [pct_nat_pft_data[i] for i in active_idx]
+        titles_list = [NATPFT_NAMES.get(i, f'PFT {i}')[:22] for i in active_idx]
 
-    # Pie chart for non-zero PFTs
-    plot_pie_chart(axes[0], natpft_labels, pct_nat_pft,
-                   f'Natural PFT Distribution\n(within {pct_natveg:.1f}% natural veg)', min_pct=0.5)
+        if data_list:
+            ncols = min(4, len(data_list))
+            fig = plot_map_grid(data_list, titles_list, lons, lats,
+                                'Natural PFT Distribution (% of natural veg landunit)',
+                                units='%', cmap='YlGn', ncols=ncols)
+            pdf_path = os.path.join(pdf_dir, '03_natural_pft_maps.pdf')
+            fig.savefig(pdf_path, bbox_inches='tight')
+            section3_figures.append({
+                'pdf_name': os.path.basename(pdf_path),
+                'caption': f'Spatial maps of natural PFT fractions (showing {len(active_idx)} PFTs with max > 1%).',
+                'base64': fig_to_base64(fig)
+            })
+            plt.close(fig)
 
-    # Horizontal bar chart
-    colors = plt.cm.Greens(np.linspace(0.3, 0.9, 15))
-    y_pos = range(15)
-    axes[1].barh(y_pos, pct_nat_pft, color=colors, edgecolor='#2d3748')
-    axes[1].set_yticks(y_pos)
-    axes[1].set_yticklabels(natpft_labels, fontsize=9)
-    axes[1].set_xlabel('Percent of Natural Vegetation Landunit (%)')
-    axes[1].set_title('Natural Plant Functional Types', fontsize=12, fontweight='bold')
-    axes[1].grid(axis='x', alpha=0.3)
+        # Domain-mean bar chart
+        natpft_labels = [NATPFT_NAMES.get(i, f'PFT {i}') for i in range(n_natpft)]
+        pct_nat_pft_mean = np.array([
+            float(np.nanmean(np.where(land_mask, pct_nat_pft_data[i], np.nan)))
+            for i in range(n_natpft)
+        ])
+        fig, ax = plt.subplots(figsize=(12, 6))
+        colors_bar = plt.cm.Greens(np.linspace(0.3, 0.9, n_natpft))
+        ax.barh(range(n_natpft), pct_nat_pft_mean, color=colors_bar, edgecolor='#2d3748')
+        ax.set_yticks(range(n_natpft))
+        ax.set_yticklabels(natpft_labels, fontsize=9)
+        ax.set_xlabel('Domain-mean percent of Natural Vegetation Landunit (%)')
+        ax.set_title('Natural PFTs \u2013 Domain Mean', fontsize=12, fontweight='bold')
+        ax.grid(axis='x', alpha=0.3)
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '03b_natural_pft_mean.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section3_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Domain-mean natural PFT fractions (land-cell average).',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
-    # Add value labels for non-zero
-    for i, v in enumerate(pct_nat_pft):
-        if v > 0:
-            axes[1].text(v + 1, i, f'{v:.1f}%', va='center', fontsize=8)
+        # Keep domain-mean for summary use
+        pct_nat_pft = pct_nat_pft_mean
 
-    plt.tight_layout()
-    pdf_path = os.path.join(pdf_dir, '03_natural_pft.pdf')
-    fig.savefig(pdf_path, bbox_inches='tight')
-    section3_figures.append({
-        'pdf_name': os.path.basename(pdf_path),
-        'caption': 'Distribution of natural Plant Functional Types (PFTs). Values represent percentages within the natural vegetation landunit.',
-        'base64': fig_to_base64(fig)
-    })
-    plt.close(fig)
+    else:
+        fig, axes = plt.subplots(1, 2, figsize=(16, 7))
+
+        pct_nat_pft = get_1d_array(nc.variables['PCT_NAT_PFT'])
+        natpft_labels = [NATPFT_NAMES.get(i, f'PFT {i}') for i in range(15)]
+
+        plot_pie_chart(axes[0], natpft_labels, pct_nat_pft,
+                       f'Natural PFT Distribution\n(within {pct_natveg:.1f}% natural veg)', min_pct=0.5)
+
+        colors = plt.cm.Greens(np.linspace(0.3, 0.9, 15))
+        y_pos = range(15)
+        axes[1].barh(y_pos, pct_nat_pft, color=colors, edgecolor='#2d3748')
+        axes[1].set_yticks(y_pos)
+        axes[1].set_yticklabels(natpft_labels, fontsize=9)
+        axes[1].set_xlabel('Percent of Natural Vegetation Landunit (%)')
+        axes[1].set_title('Natural Plant Functional Types', fontsize=12, fontweight='bold')
+        axes[1].grid(axis='x', alpha=0.3)
+        for i, v in enumerate(pct_nat_pft):
+            if v > 0:
+                axes[1].text(v + 1, i, f'{v:.1f}%', va='center', fontsize=8)
+
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '03_natural_pft.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section3_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Distribution of natural Plant Functional Types (PFTs). Values represent percentages within the natural vegetation landunit.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
     figures_data.append({
         'id': 'natural-pft',
         'title': 'Natural PFT Distribution',
-        'description': 'Natural Plant Functional Type distribution within the natural vegetation landunit. Important for understanding vegetation dynamics.',
+        'description': 'Natural Plant Functional Type distribution within the natural vegetation landunit.',
         'figures': section3_figures
     })
 
@@ -894,82 +1211,126 @@ def main(nc_file):
     print("Creating Section 4: Crop Functional Types...")
     section4_figures = []
 
-    # Get PCT_CFT data
-    pct_cft = get_1d_array(nc.variables['PCT_CFT'])
     cft_indices = nc.variables['cft'][:]
 
-    # Only show non-zero CFTs
-    nonzero_mask = pct_cft > 0.1
-    nonzero_cft_values = pct_cft[nonzero_mask]
-    nonzero_cft_indices = cft_indices[nonzero_mask]
-    nonzero_cft_labels = [CFT_NAMES.get(int(i), f'CFT {i}') for i in nonzero_cft_indices]
+    if is_regional:
+        pct_cft_data = np.array(nc.variables['PCT_CFT'][:], dtype=float)
+        if hasattr(nc.variables['PCT_CFT'][:], 'mask'):
+            pct_cft_data = np.ma.filled(nc.variables['PCT_CFT'][:], np.nan)
+        n_cft = pct_cft_data.shape[0]
 
-    fig, axes = plt.subplots(1, 2, figsize=(16, 7))
+        # Maps for CFTs present anywhere (max > 1%)
+        active_cft_idx = [i for i in range(n_cft)
+                          if np.nanmax(pct_cft_data[i]) > 1.0]
+        if active_cft_idx:
+            data_list   = [pct_cft_data[i] for i in active_cft_idx]
+            titles_list = [CFT_NAMES.get(int(cft_indices[i]), f'CFT {cft_indices[i]}')[:22]
+                           for i in active_cft_idx]
+            ncols = min(4, len(data_list))
+            fig = plot_map_grid(data_list, titles_list, lons, lats,
+                                'Crop Functional Types (% of crop landunit)',
+                                units='%', cmap='YlOrBr', ncols=ncols)
+            pdf_path = os.path.join(pdf_dir, '04_cft_maps.pdf')
+            fig.savefig(pdf_path, bbox_inches='tight')
+            section4_figures.append({
+                'pdf_name': os.path.basename(pdf_path),
+                'caption': f'Spatial maps of crop functional types (showing {len(active_cft_idx)} CFTs with max > 1%).',
+                'base64': fig_to_base64(fig)
+            })
+            plt.close(fig)
 
-    if len(nonzero_cft_values) > 0:
-        # Pie chart
-        plot_pie_chart(axes[0], nonzero_cft_labels, nonzero_cft_values,
-                      f'Crop Type Distribution\n(within {pct_crop:.1f}% cropland)', min_pct=0.1)
+        # Domain-mean fertilizer bar chart
+        fertnitro_data = np.array(nc.variables['CONST_FERTNITRO_CFT'][:], dtype=float)
+        if hasattr(nc.variables['CONST_FERTNITRO_CFT'][:], 'mask'):
+            fertnitro_data = np.ma.filled(nc.variables['CONST_FERTNITRO_CFT'][:], np.nan)
+        fert_mean = np.array([
+            float(np.nanmean(np.where(land_mask, fertnitro_data[i], np.nan)))
+            for i in range(n_cft)
+        ])
+        nonzero_fert_mask = fert_mean > 0
+        if np.any(nonzero_fert_mask):
+            nz_fert = fert_mean[nonzero_fert_mask]
+            nz_fert_labels = [CFT_NAMES.get(int(cft_indices[i]), f'CFT {cft_indices[i]}')
+                              for i in range(n_cft) if nonzero_fert_mask[i]]
+            fig, ax = plt.subplots(figsize=(14, 6))
+            colors = plt.cm.Blues(np.linspace(0.4, 0.9, len(nz_fert)))
+            ax.bar(range(len(nz_fert)), nz_fert, color=colors, edgecolor='#2d3748')
+            ax.set_xticks(range(len(nz_fert)))
+            ax.set_xticklabels(nz_fert_labels, rotation=45, ha='right', fontsize=9)
+            ax.set_ylabel('N Fertilizer \u2013 Domain Mean (gN/m\u00b2/yr)')
+            ax.set_title('Nitrogen Fertilizer \u2013 Domain Mean by Crop Type', fontsize=12, fontweight='bold')
+            ax.grid(axis='y', alpha=0.3)
+            plt.tight_layout()
+            pdf_path = os.path.join(pdf_dir, '04b_nitrogen_fertilizer.pdf')
+            fig.savefig(pdf_path, bbox_inches='tight')
+            section4_figures.append({
+                'pdf_name': os.path.basename(pdf_path),
+                'caption': 'Domain-mean nitrogen fertilizer application rates for non-zero crop types.',
+                'base64': fig_to_base64(fig)
+            })
+            plt.close(fig)
 
-        # Bar chart
-        colors = plt.cm.YlOrBr(np.linspace(0.3, 0.9, len(nonzero_cft_values)))
-        y_pos = range(len(nonzero_cft_values))
-        axes[1].barh(y_pos, nonzero_cft_values, color=colors, edgecolor='#2d3748')
-        axes[1].set_yticks(y_pos)
-        axes[1].set_yticklabels(nonzero_cft_labels, fontsize=9)
-        axes[1].set_xlabel('Percent of Crop Landunit (%)')
-        axes[1].set_title('Crop Functional Types (non-zero only)', fontsize=12, fontweight='bold')
-        axes[1].grid(axis='x', alpha=0.3)
-
-        for i, v in enumerate(nonzero_cft_values):
-            axes[1].text(v + 0.5, i, f'{v:.1f}%', va='center', fontsize=9)
     else:
-        axes[0].text(0.5, 0.5, 'No crops present', ha='center', va='center', transform=axes[0].transAxes)
-        axes[1].text(0.5, 0.5, 'No crops present', ha='center', va='center', transform=axes[1].transAxes)
+        pct_cft = get_1d_array(nc.variables['PCT_CFT'])
+        nonzero_mask = pct_cft > 0.1
+        nonzero_cft_values  = pct_cft[nonzero_mask]
+        nonzero_cft_indices = cft_indices[nonzero_mask]
+        nonzero_cft_labels  = [CFT_NAMES.get(int(i), f'CFT {i}') for i in nonzero_cft_indices]
 
-    plt.tight_layout()
-    pdf_path = os.path.join(pdf_dir, '04_crop_functional_types.pdf')
-    fig.savefig(pdf_path, bbox_inches='tight')
-    section4_figures.append({
-        'pdf_name': os.path.basename(pdf_path),
-        'caption': 'Distribution of Crop Functional Types (CFTs). Values represent percentages within the crop landunit.',
-        'base64': fig_to_base64(fig)
-    })
-    plt.close(fig)
+        fig, axes = plt.subplots(1, 2, figsize=(16, 7))
+        if len(nonzero_cft_values) > 0:
+            plot_pie_chart(axes[0], nonzero_cft_labels, nonzero_cft_values,
+                          f'Crop Type Distribution\n(within {pct_crop:.1f}% cropland)', min_pct=0.1)
+            colors = plt.cm.YlOrBr(np.linspace(0.3, 0.9, len(nonzero_cft_values)))
+            y_pos = range(len(nonzero_cft_values))
+            axes[1].barh(y_pos, nonzero_cft_values, color=colors, edgecolor='#2d3748')
+            axes[1].set_yticks(y_pos)
+            axes[1].set_yticklabels(nonzero_cft_labels, fontsize=9)
+            axes[1].set_xlabel('Percent of Crop Landunit (%)')
+            axes[1].set_title('Crop Functional Types (non-zero only)', fontsize=12, fontweight='bold')
+            axes[1].grid(axis='x', alpha=0.3)
+            for i, v in enumerate(nonzero_cft_values):
+                axes[1].text(v + 0.5, i, f'{v:.1f}%', va='center', fontsize=9)
+        else:
+            axes[0].text(0.5, 0.5, 'No crops present', ha='center', va='center', transform=axes[0].transAxes)
+            axes[1].text(0.5, 0.5, 'No crops present', ha='center', va='center', transform=axes[1].transAxes)
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '04_crop_functional_types.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section4_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Distribution of Crop Functional Types (CFTs). Values represent percentages within the crop landunit.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
-    # Nitrogen fertilizer for crops
-    fig, ax = plt.subplots(figsize=(14, 6))
-    fertnitro = get_1d_array(nc.variables['CONST_FERTNITRO_CFT'])
-    nonzero_fert_mask = fertnitro > 0
-
-    if np.any(nonzero_fert_mask):
-        nonzero_fert = fertnitro[nonzero_fert_mask]
-        nonzero_fert_indices = cft_indices[nonzero_fert_mask]
-        nonzero_fert_labels = [CFT_NAMES.get(int(i), f'CFT {i}') for i in nonzero_fert_indices]
-
-        colors = plt.cm.Blues(np.linspace(0.4, 0.9, len(nonzero_fert)))
-        x_pos = range(len(nonzero_fert))
-        ax.bar(x_pos, nonzero_fert, color=colors, edgecolor='#2d3748')
-        ax.set_xticks(x_pos)
-        ax.set_xticklabels(nonzero_fert_labels, rotation=45, ha='right', fontsize=9)
-        ax.set_ylabel('Nitrogen Fertilizer (gN/m2/yr)')
-        ax.set_title('Nitrogen Fertilizer Application by Crop Type', fontsize=12, fontweight='bold')
-        ax.grid(axis='y', alpha=0.3)
-
-        for i, v in enumerate(nonzero_fert):
-            ax.text(i, v + 0.3, f'{v:.1f}', ha='center', fontsize=9)
-    else:
-        ax.text(0.5, 0.5, 'No fertilizer data', ha='center', va='center', transform=ax.transAxes)
-
-    plt.tight_layout()
-    pdf_path = os.path.join(pdf_dir, '04b_nitrogen_fertilizer.pdf')
-    fig.savefig(pdf_path, bbox_inches='tight')
-    section4_figures.append({
-        'pdf_name': os.path.basename(pdf_path),
-        'caption': 'Nitrogen fertilizer application rates for different crop types.',
-        'base64': fig_to_base64(fig)
-    })
-    plt.close(fig)
+        fig, ax = plt.subplots(figsize=(14, 6))
+        fertnitro = get_1d_array(nc.variables['CONST_FERTNITRO_CFT'])
+        nonzero_fert_mask = fertnitro > 0
+        if np.any(nonzero_fert_mask):
+            nonzero_fert = fertnitro[nonzero_fert_mask]
+            nonzero_fert_indices = cft_indices[nonzero_fert_mask]
+            nonzero_fert_labels  = [CFT_NAMES.get(int(i), f'CFT {i}') for i in nonzero_fert_indices]
+            colors = plt.cm.Blues(np.linspace(0.4, 0.9, len(nonzero_fert)))
+            ax.bar(range(len(nonzero_fert)), nonzero_fert, color=colors, edgecolor='#2d3748')
+            ax.set_xticks(range(len(nonzero_fert)))
+            ax.set_xticklabels(nonzero_fert_labels, rotation=45, ha='right', fontsize=9)
+            ax.set_ylabel('Nitrogen Fertilizer (gN/m\u00b2/yr)')
+            ax.set_title('Nitrogen Fertilizer Application by Crop Type', fontsize=12, fontweight='bold')
+            ax.grid(axis='y', alpha=0.3)
+            for i, v in enumerate(nonzero_fert):
+                ax.text(i, v + 0.3, f'{v:.1f}', ha='center', fontsize=9)
+        else:
+            ax.text(0.5, 0.5, 'No fertilizer data', ha='center', va='center', transform=ax.transAxes)
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '04b_nitrogen_fertilizer.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section4_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Nitrogen fertilizer application rates for different crop types.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
     figures_data.append({
         'id': 'crop-types',
@@ -984,61 +1345,126 @@ def main(nc_file):
     print("Creating Section 5: Soil Properties...")
     section5_figures = []
 
-    fig, axes = plt.subplots(1, 3, figsize=(15, 6))
+    if is_regional:
+        # Load 3-D soil arrays: (nlevsoi, nlat, nlon)
+        sand_3d = np.array(nc.variables['PCT_SAND'][:], dtype=float)
+        clay_3d = np.array(nc.variables['PCT_CLAY'][:], dtype=float)
+        org_3d  = np.array(nc.variables['ORGANIC'][:],  dtype=float)
+        for arr in [sand_3d, clay_3d, org_3d]:
+            if hasattr(arr, 'mask'):
+                arr = np.ma.filled(arr, np.nan)
 
-    # PCT_SAND
-    pct_sand = get_1d_array(nc.variables['PCT_SAND'])
-    plot_soil_profile(axes[0], SOIL_DEPTHS, pct_sand, 'Sand Content', '%', '#f6ad55')
+        # Maps of depth-mean values
+        sand_mean2d = np.nanmean(sand_3d, axis=0)
+        clay_mean2d = np.nanmean(clay_3d, axis=0)
+        org_mean2d  = np.nanmean(org_3d,  axis=0)
 
-    # PCT_CLAY
-    pct_clay = get_1d_array(nc.variables['PCT_CLAY'])
-    plot_soil_profile(axes[1], SOIL_DEPTHS, pct_clay, 'Clay Content', '%', '#fc8181')
+        fig = plot_map_grid(
+            [sand_mean2d, clay_mean2d, org_mean2d],
+            ['Sand \u2013 depth mean', 'Clay \u2013 depth mean', 'Organic matter \u2013 depth mean'],
+            lons, lats,
+            'Soil Properties \u2013 Depth-Averaged Spatial Distribution',
+            units=['%', '%', 'kg/m\u00b3'],
+            cmap=['YlOrBr', 'Reds', 'Greens'],
+            ncols=3
+        )
+        pdf_path = os.path.join(pdf_dir, '05_soil_maps.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section5_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Depth-averaged spatial maps of sand content, clay content, and organic matter density.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
-    # ORGANIC
-    organic = get_1d_array(nc.variables['ORGANIC'])
-    plot_soil_profile(axes[2], SOIL_DEPTHS, organic, 'Organic Matter', 'kg/m3', '#68d391')
+        # Domain-mean soil profiles (mean ± std over land cells)
+        def _masked_profile(arr3d):
+            out_mean, out_std = [], []
+            for lev in range(arr3d.shape[0]):
+                d = arr3d[lev]
+                vals = d[land_mask & np.isfinite(d)]
+                out_mean.append(float(np.nanmean(vals)) if vals.size else np.nan)
+                out_std.append(float(np.nanstd(vals))  if vals.size else np.nan)
+            return np.array(out_mean), np.array(out_std)
 
-    fig.suptitle('Soil Properties by Depth', fontsize=14, fontweight='bold')
-    plt.tight_layout()
-    pdf_path = os.path.join(pdf_dir, '05_soil_properties.pdf')
-    fig.savefig(pdf_path, bbox_inches='tight')
-    section5_figures.append({
-        'pdf_name': os.path.basename(pdf_path),
-        'caption': 'Vertical profiles of soil texture (sand and clay content) and organic matter density across 10 soil layers.',
-        'base64': fig_to_base64(fig)
-    })
-    plt.close(fig)
+        sand_m, sand_s = _masked_profile(sand_3d)
+        clay_m, clay_s = _masked_profile(clay_3d)
+        org_m,  org_s  = _masked_profile(org_3d)
 
-    # Combined soil texture visualization
-    fig, ax = plt.subplots(figsize=(10, 8))
-    pct_silt = 100 - pct_sand - pct_clay  # Calculate silt
+        fig, axes = plt.subplots(1, 3, figsize=(15, 6))
+        for ax, m, s, title, units_str, col in zip(
+                axes,
+                [sand_m, clay_m, org_m],
+                [sand_s, clay_s, org_s],
+                ['Sand Content', 'Clay Content', 'Organic Matter'],
+                ['%', '%', 'kg/m\u00b3'],
+                ['#f6ad55', '#fc8181', '#68d391']):
+            ax.barh(range(len(SOIL_DEPTHS)), m, color=col, edgecolor='#2d3748', alpha=0.8,
+                    xerr=s, error_kw=dict(ecolor='#2d3748', capsize=3))
+            ax.set_yticks(range(len(SOIL_DEPTHS)))
+            ax.set_yticklabels([f'{d:.2f}m' for d in SOIL_DEPTHS])
+            ax.invert_yaxis()
+            ax.set_xlabel(f'{title} [{units_str}]')
+            ax.set_title(f'{title}\n(domain mean \u00b1 std)', fontsize=11, fontweight='bold')
+            ax.grid(axis='x', alpha=0.3)
+        fig.suptitle('Soil Properties by Depth \u2013 Domain Mean', fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '05b_soil_profiles.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section5_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Domain-mean soil profiles (error bars show spatial std) for sand, clay, and organic matter.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
-    # Stacked bar chart for soil texture
-    x = range(len(SOIL_DEPTHS))
-    width = 0.6
+        # Store domain-mean 1-D profiles for summary use
+        pct_sand = sand_m
+        pct_clay = clay_m
 
-    ax.barh(x, pct_sand, width, label='Sand', color='#f6ad55', edgecolor='#2d3748')
-    ax.barh(x, pct_silt, width, left=pct_sand, label='Silt', color='#a0aec0', edgecolor='#2d3748')
-    ax.barh(x, pct_clay, width, left=pct_sand+pct_silt, label='Clay', color='#fc8181', edgecolor='#2d3748')
+    else:
+        fig, axes = plt.subplots(1, 3, figsize=(15, 6))
+        pct_sand = get_1d_array(nc.variables['PCT_SAND'])
+        plot_soil_profile(axes[0], SOIL_DEPTHS, pct_sand, 'Sand Content', '%', '#f6ad55')
+        pct_clay = get_1d_array(nc.variables['PCT_CLAY'])
+        plot_soil_profile(axes[1], SOIL_DEPTHS, pct_clay, 'Clay Content', '%', '#fc8181')
+        organic = get_1d_array(nc.variables['ORGANIC'])
+        plot_soil_profile(axes[2], SOIL_DEPTHS, organic, 'Organic Matter', 'kg/m3', '#68d391')
+        fig.suptitle('Soil Properties by Depth', fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '05_soil_properties.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section5_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Vertical profiles of soil texture (sand and clay content) and organic matter density across 10 soil layers.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
-    ax.set_yticks(x)
-    ax.set_yticklabels([f'{d:.2f}m' for d in SOIL_DEPTHS])
-    ax.invert_yaxis()
-    ax.set_xlabel('Percent (%)')
-    ax.set_ylabel('Depth')
-    ax.set_title('Soil Texture Composition by Depth', fontsize=12, fontweight='bold')
-    ax.legend(loc='upper right')
-    ax.set_xlim(0, 100)
-
-    plt.tight_layout()
-    pdf_path = os.path.join(pdf_dir, '05b_soil_texture.pdf')
-    fig.savefig(pdf_path, bbox_inches='tight')
-    section5_figures.append({
-        'pdf_name': os.path.basename(pdf_path),
-        'caption': 'Stacked bar chart showing soil texture composition (sand, silt, clay) at each soil layer.',
-        'base64': fig_to_base64(fig)
-    })
-    plt.close(fig)
+        fig, ax = plt.subplots(figsize=(10, 8))
+        pct_silt = 100 - pct_sand - pct_clay
+        x = range(len(SOIL_DEPTHS))
+        width = 0.6
+        ax.barh(x, pct_sand, width, label='Sand', color='#f6ad55', edgecolor='#2d3748')
+        ax.barh(x, pct_silt, width, left=pct_sand, label='Silt', color='#a0aec0', edgecolor='#2d3748')
+        ax.barh(x, pct_clay, width, left=pct_sand + pct_silt, label='Clay', color='#fc8181', edgecolor='#2d3748')
+        ax.set_yticks(x)
+        ax.set_yticklabels([f'{d:.2f}m' for d in SOIL_DEPTHS])
+        ax.invert_yaxis()
+        ax.set_xlabel('Percent (%)')
+        ax.set_ylabel('Depth')
+        ax.set_title('Soil Texture Composition by Depth', fontsize=12, fontweight='bold')
+        ax.legend(loc='upper right')
+        ax.set_xlim(0, 100)
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '05b_soil_texture.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section5_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Stacked bar chart showing soil texture composition (sand, silt, clay) at each soil layer.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
     figures_data.append({
         'id': 'soil',
@@ -1053,65 +1479,109 @@ def main(nc_file):
     print("Creating Section 6: Monthly Vegetation Parameters...")
     section6_figures = []
 
-    # Find PFTs with non-zero LAI
-    lai_data = nc.variables['MONTHLY_LAI'][:]
-    sai_data = nc.variables['MONTHLY_SAI'][:]
-
-    # Identify active PFTs (those with non-zero LAI at any month)
-    active_pfts = []
-    for pft in range(79):
-        if np.any(lai_data[:, pft, 0, 0] > 0):
-            active_pfts.append(pft)
-
-    # Combine PFT names
+    lai_data = np.array(nc.variables['MONTHLY_LAI'][:], dtype=float)
+    sai_data = np.array(nc.variables['MONTHLY_SAI'][:], dtype=float)
     all_pft_names = {**NATPFT_NAMES, **CFT_NAMES}
 
-    # Plot LAI
-    fig, ax = plt.subplots(figsize=(14, 7))
-    plot_monthly_timeseries(ax, lai_data, active_pfts[:10],
-                           'Monthly Leaf Area Index (LAI)', 'm2/m2', all_pft_names)
-    plt.tight_layout()
-    pdf_path = os.path.join(pdf_dir, '06_monthly_lai.pdf')
-    fig.savefig(pdf_path, bbox_inches='tight')
-    section6_figures.append({
-        'pdf_name': os.path.basename(pdf_path),
-        'caption': 'Monthly Leaf Area Index (LAI) time series for active Plant Functional Types.',
-        'base64': fig_to_base64(fig)
-    })
-    plt.close(fig)
+    if is_regional:
+        # Active PFTs: non-zero anywhere in domain
+        active_pfts = [pft for pft in range(lai_data.shape[1])
+                       if np.nanmax(lai_data[:, pft, :, :]) > 0]
 
-    # Plot SAI
-    fig, ax = plt.subplots(figsize=(14, 7))
-    plot_monthly_timeseries(ax, sai_data, active_pfts[:10],
-                           'Monthly Stem Area Index (SAI)', 'm2/m2', all_pft_names)
-    plt.tight_layout()
-    pdf_path = os.path.join(pdf_dir, '06b_monthly_sai.pdf')
-    fig.savefig(pdf_path, bbox_inches='tight')
-    section6_figures.append({
-        'pdf_name': os.path.basename(pdf_path),
-        'caption': 'Monthly Stem Area Index (SAI) time series for active Plant Functional Types.',
-        'base64': fig_to_base64(fig)
-    })
-    plt.close(fig)
+        # Domain-mean timeseries
+        fig, ax = plt.subplots(figsize=(14, 7))
+        plot_monthly_timeseries_regional(ax, lai_data, active_pfts[:10],
+                                         'Monthly LAI \u2013 Domain Mean', 'm\u00b2/m\u00b2',
+                                         all_pft_names, land_mask)
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '06_monthly_lai.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section6_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Domain-mean monthly LAI for active PFTs (spatial average over land cells).',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
-    # Plot canopy heights
-    height_top = nc.variables['MONTHLY_HEIGHT_TOP'][:]
-    height_bot = nc.variables['MONTHLY_HEIGHT_BOT'][:]
+        fig, ax = plt.subplots(figsize=(14, 7))
+        plot_monthly_timeseries_regional(ax, sai_data, active_pfts[:10],
+                                         'Monthly SAI \u2013 Domain Mean', 'm\u00b2/m\u00b2',
+                                         all_pft_names, land_mask)
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '06b_monthly_sai.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section6_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Domain-mean monthly SAI for active PFTs.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-    plot_monthly_timeseries(axes[0], height_top, active_pfts[:10],
-                           'Monthly Canopy Top Height', 'm', all_pft_names)
-    plot_monthly_timeseries(axes[1], height_bot, active_pfts[:10],
-                           'Monthly Canopy Bottom Height', 'm', all_pft_names)
-    plt.tight_layout()
-    pdf_path = os.path.join(pdf_dir, '06c_canopy_heights.pdf')
-    fig.savefig(pdf_path, bbox_inches='tight')
-    section6_figures.append({
-        'pdf_name': os.path.basename(pdf_path),
-        'caption': 'Monthly canopy top and bottom heights for active Plant Functional Types.',
-        'base64': fig_to_base64(fig)
-    })
-    plt.close(fig)
+        # Annual-mean LAI maps for top active PFTs
+        n_map_pfts = min(8, len(active_pfts))
+        if n_map_pfts > 0:
+            data_list   = [np.nanmean(lai_data[:, p, :, :], axis=0) for p in active_pfts[:n_map_pfts]]
+            titles_list = [all_pft_names.get(p, f'PFT {p}')[:22] for p in active_pfts[:n_map_pfts]]
+            ncols = min(4, n_map_pfts)
+            fig = plot_map_grid(data_list, titles_list, lons, lats,
+                                'Annual-Mean LAI by PFT',
+                                units='m\u00b2/m\u00b2', cmap='YlGn', ncols=ncols)
+            pdf_path = os.path.join(pdf_dir, '06c_lai_maps.pdf')
+            fig.savefig(pdf_path, bbox_inches='tight')
+            section6_figures.append({
+                'pdf_name': os.path.basename(pdf_path),
+                'caption': f'Spatial maps of annual-mean LAI for the {n_map_pfts} most active PFTs.',
+                'base64': fig_to_base64(fig)
+            })
+            plt.close(fig)
+
+    else:
+        # Identify active PFTs (non-zero LAI at any month at the single cell)
+        active_pfts = [pft for pft in range(79)
+                       if np.any(lai_data[:, pft, 0, 0] > 0)]
+
+        fig, ax = plt.subplots(figsize=(14, 7))
+        plot_monthly_timeseries(ax, lai_data, active_pfts[:10],
+                                'Monthly Leaf Area Index (LAI)', 'm2/m2', all_pft_names)
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '06_monthly_lai.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section6_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Monthly Leaf Area Index (LAI) time series for active Plant Functional Types.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
+
+        fig, ax = plt.subplots(figsize=(14, 7))
+        plot_monthly_timeseries(ax, sai_data, active_pfts[:10],
+                                'Monthly Stem Area Index (SAI)', 'm2/m2', all_pft_names)
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '06b_monthly_sai.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section6_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Monthly Stem Area Index (SAI) time series for active Plant Functional Types.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
+
+        height_top = nc.variables['MONTHLY_HEIGHT_TOP'][:]
+        height_bot = nc.variables['MONTHLY_HEIGHT_BOT'][:]
+        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+        plot_monthly_timeseries(axes[0], height_top, active_pfts[:10],
+                                'Monthly Canopy Top Height', 'm', all_pft_names)
+        plot_monthly_timeseries(axes[1], height_bot, active_pfts[:10],
+                                'Monthly Canopy Bottom Height', 'm', all_pft_names)
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '06c_canopy_heights.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section6_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Monthly canopy top and bottom heights for active Plant Functional Types.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
     figures_data.append({
         'id': 'vegetation',
@@ -1126,12 +1596,62 @@ def main(nc_file):
     print("Creating Section 7: Urban Parameters...")
     section7_figures = []
 
-    # Urban percent by type
-    pct_urban = get_1d_array(nc.variables['PCT_URBAN'])
+    if is_regional:
+        # Maps of PCT_URBAN per density class
+        pct_urban_3d = np.array(nc.variables['PCT_URBAN'][:], dtype=float)
+        data_list   = [pct_urban_3d[i] for i in range(len(URBAN_TYPES))]
+        titles_list = [f'PCT_URBAN\n{t}' for t in URBAN_TYPES]
+        fig = plot_map_grid(data_list, titles_list, lons, lats,
+                            'Urban Fraction by Density Class',
+                            units='%', cmap='Reds', ncols=3)
+        pdf_path = os.path.join(pdf_dir, '07_urban_maps.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section7_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Spatial maps of urban fraction for Tall Building District, High Density, and Medium Density classes.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
+        # Domain-mean bar charts for building parameters
+        def _urban_mean(var_name):
+            d = np.array(nc.variables[var_name][:], dtype=float)
+            return np.array([
+                float(np.nanmean(np.where(land_mask, d[i], np.nan)))
+                for i in range(len(URBAN_TYPES))
+            ])
+
+        pct_urban      = _urban_mean('PCT_URBAN')
+        canyon_hwr     = _urban_mean('CANYON_HWR')
+        ht_roof        = _urban_mean('HT_ROOF')
+        t_building     = _urban_mean('T_BUILDING_MIN')
+        wtlunit_roof   = _urban_mean('WTLUNIT_ROOF')
+        wtroad_perv    = _urban_mean('WTROAD_PERV')
+        thick_roof     = _urban_mean('THICK_ROOF')
+        thick_wall     = _urban_mean('THICK_WALL')
+        em_improad     = _urban_mean('EM_IMPROAD')
+        em_perroad     = _urban_mean('EM_PERROAD')
+        em_roof        = _urban_mean('EM_ROOF')
+        em_wall        = _urban_mean('EM_WALL')
+
+    # For single-site: read all urban parameter vectors directly
+    if not is_regional:
+        pct_urban    = get_1d_array(nc.variables['PCT_URBAN'])
+        canyon_hwr   = get_1d_array(nc.variables['CANYON_HWR'])
+        ht_roof      = get_1d_array(nc.variables['HT_ROOF'])
+        t_building   = get_1d_array(nc.variables['T_BUILDING_MIN'])
+        wtlunit_roof = get_1d_array(nc.variables['WTLUNIT_ROOF'])
+        wtroad_perv  = get_1d_array(nc.variables['WTROAD_PERV'])
+        thick_roof   = get_1d_array(nc.variables['THICK_ROOF'])
+        thick_wall   = get_1d_array(nc.variables['THICK_WALL'])
+        em_improad   = get_1d_array(nc.variables['EM_IMPROAD'])
+        em_perroad   = get_1d_array(nc.variables['EM_PERROAD'])
+        em_roof      = get_1d_array(nc.variables['EM_ROOF'])
+        em_wall      = get_1d_array(nc.variables['EM_WALL'])
+
+    # Shared bar chart for building parameters (works for both modes)
     fig, axes = plt.subplots(2, 3, figsize=(15, 10))
 
-    # Urban fraction
     axes[0, 0].bar(URBAN_TYPES, pct_urban, color=['#e53e3e', '#dd6b20', '#d69e2e'], edgecolor='#2d3748')
     axes[0, 0].set_ylabel('Percent (%)')
     axes[0, 0].set_title('Urban Fraction by Density Type', fontsize=11, fontweight='bold')
@@ -1139,44 +1659,30 @@ def main(nc_file):
     for i, v in enumerate(pct_urban):
         axes[0, 0].text(i, v + 0.1, f'{v:.2f}%', ha='center', fontsize=9)
 
-    # Canyon height-to-width ratio
-    canyon_hwr = get_1d_array(nc.variables['CANYON_HWR'])
     axes[0, 1].bar(URBAN_TYPES, canyon_hwr, color='#805ad5', edgecolor='#2d3748')
     axes[0, 1].set_ylabel('Height/Width Ratio')
     axes[0, 1].set_title('Canyon Height-to-Width Ratio', fontsize=11, fontweight='bold')
     axes[0, 1].tick_params(axis='x', rotation=15)
 
-    # Roof height
-    ht_roof = get_1d_array(nc.variables['HT_ROOF'])
     axes[0, 2].bar(URBAN_TYPES, ht_roof, color='#3182ce', edgecolor='#2d3748')
     axes[0, 2].set_ylabel('Height (m)')
     axes[0, 2].set_title('Roof Height', fontsize=11, fontweight='bold')
     axes[0, 2].tick_params(axis='x', rotation=15)
 
-    # Building temperature minimum
-    t_building = get_1d_array(nc.variables['T_BUILDING_MIN'])
-    axes[1, 0].bar(URBAN_TYPES, t_building - 273.15, color='#e53e3e', edgecolor='#2d3748')  # Convert to Celsius
-    axes[1, 0].set_ylabel('Temperature (C)')
+    axes[1, 0].bar(URBAN_TYPES, t_building - 273.15, color='#e53e3e', edgecolor='#2d3748')
+    axes[1, 0].set_ylabel('Temperature (\u00b0C)')
     axes[1, 0].set_title('Min. Building Interior Temp.', fontsize=11, fontweight='bold')
     axes[1, 0].tick_params(axis='x', rotation=15)
-
-    # Roof and pervious road fractions
-    wtlunit_roof = get_1d_array(nc.variables['WTLUNIT_ROOF'])
-    wtroad_perv = get_1d_array(nc.variables['WTROAD_PERV'])
 
     x = np.arange(len(URBAN_TYPES))
     width = 0.35
     axes[1, 1].bar(x - width/2, wtlunit_roof, width, label='Roof Fraction', color='#805ad5', edgecolor='#2d3748')
-    axes[1, 1].bar(x + width/2, wtroad_perv, width, label='Pervious Road Fraction', color='#38a169', edgecolor='#2d3748')
+    axes[1, 1].bar(x + width/2, wtroad_perv,  width, label='Pervious Road Fraction', color='#38a169', edgecolor='#2d3748')
     axes[1, 1].set_xticks(x)
     axes[1, 1].set_xticklabels(URBAN_TYPES, rotation=15)
     axes[1, 1].set_ylabel('Fraction')
     axes[1, 1].set_title('Urban Surface Fractions', fontsize=11, fontweight='bold')
     axes[1, 1].legend(fontsize=8)
-
-    # Wall and roof thickness
-    thick_roof = get_1d_array(nc.variables['THICK_ROOF'])
-    thick_wall = get_1d_array(nc.variables['THICK_WALL'])
 
     axes[1, 2].bar(x - width/2, thick_roof, width, label='Roof Thickness', color='#4299e1', edgecolor='#2d3748')
     axes[1, 2].bar(x + width/2, thick_wall, width, label='Wall Thickness', color='#ed8936', edgecolor='#2d3748')
@@ -1186,12 +1692,16 @@ def main(nc_file):
     axes[1, 2].set_title('Building Element Thickness', fontsize=11, fontweight='bold')
     axes[1, 2].legend(fontsize=8)
 
+    lbl_suffix = ' (domain mean)' if is_regional else ''
+    fig.suptitle(f'Urban Parameters{lbl_suffix}', fontsize=14, fontweight='bold')
     plt.tight_layout()
     pdf_path = os.path.join(pdf_dir, '07_urban_basic.pdf')
     fig.savefig(pdf_path, bbox_inches='tight')
     section7_figures.append({
         'pdf_name': os.path.basename(pdf_path),
-        'caption': 'Basic urban parameters for three density classes: Tall Building District, High Density, and Medium Density.',
+        'caption': ('Basic urban parameters for three density classes (domain-mean values shown for regional grids).'
+                    if is_regional else
+                    'Basic urban parameters for three density classes.'),
         'base64': fig_to_base64(fig)
     })
     plt.close(fig)
@@ -1199,10 +1709,8 @@ def main(nc_file):
     # Urban radiative properties
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
-    # Emissivities
-    em_vars = ['EM_IMPROAD', 'EM_PERROAD', 'EM_ROOF', 'EM_WALL']
-    em_data = [get_1d_array(nc.variables[v]) for v in em_vars]
     em_labels = ['Impervious Road', 'Pervious Road', 'Roof', 'Wall']
+    em_data   = [em_improad, em_perroad, em_roof, em_wall]
 
     x = np.arange(len(URBAN_TYPES))
     width = 0.2
@@ -1222,8 +1730,15 @@ def main(nc_file):
     alb_vars_dir = ['ALB_IMPROAD_DIR', 'ALB_PERROAD_DIR', 'ALB_ROOF_DIR', 'ALB_WALL_DIR']
     alb_data_dir = []
     for v in alb_vars_dir:
-        data = nc.variables[v][:]
-        alb_data_dir.append(data[0, :, 0, 0])  # VIS band
+        data = np.array(nc.variables[v][:], dtype=float)
+        if is_regional:
+            # domain mean over (numurbl, lat, lon): axis 0 = numrad, 1 = numurbl
+            alb_data_dir.append(np.array([
+                float(np.nanmean(np.where(land_mask, data[0, i, :, :], np.nan)))
+                for i in range(len(URBAN_TYPES))
+            ]))
+        else:
+            alb_data_dir.append(data[0, :, 0, 0])  # VIS band
 
     for i, (data, label, color) in enumerate(zip(alb_data_dir, em_labels, colors)):
         axes[0, 1].bar(x + (i - 1.5) * width, data, width, label=label, color=color, edgecolor='#2d3748')
@@ -1239,8 +1754,14 @@ def main(nc_file):
     tk_labels = ['Roof', 'Wall', 'Impervious Road']
     tk_data = []
     for v in tk_vars:
-        data = nc.variables[v][:]
-        tk_data.append(data[0, :, 0, 0])  # First level
+        d = np.array(nc.variables[v][:], dtype=float)
+        if is_regional:
+            tk_data.append(np.array([
+                float(np.nanmean(np.where(land_mask, d[0, i, :, :], np.nan)))
+                for i in range(len(URBAN_TYPES))
+            ]))
+        else:
+            tk_data.append(d[0, :, 0, 0])
 
     for i, (data, label) in enumerate(zip(tk_data, tk_labels)):
         axes[1, 0].bar(x + (i - 1) * 0.25, data, 0.25, label=label,
@@ -1248,7 +1769,7 @@ def main(nc_file):
 
     axes[1, 0].set_xticks(x)
     axes[1, 0].set_xticklabels(URBAN_TYPES, rotation=15)
-    axes[1, 0].set_ylabel('Thermal Conductivity (W/m*K)')
+    axes[1, 0].set_ylabel('Thermal Conductivity (W/m\u00b7K)')
     axes[1, 0].set_title('Thermal Conductivity (Layer 1)', fontsize=11, fontweight='bold')
     axes[1, 0].legend(fontsize=8)
 
@@ -1257,8 +1778,14 @@ def main(nc_file):
     cv_labels = ['Roof', 'Wall', 'Impervious Road']
     cv_data = []
     for v in cv_vars:
-        data = nc.variables[v][:]
-        cv_data.append(data[0, :, 0, 0] / 1e6)  # Convert to MJ for readability
+        d = np.array(nc.variables[v][:], dtype=float)
+        if is_regional:
+            cv_data.append(np.array([
+                float(np.nanmean(np.where(land_mask, d[0, i, :, :], np.nan)))
+                for i in range(len(URBAN_TYPES))
+            ]) / 1e6)
+        else:
+            cv_data.append(d[0, :, 0, 0] / 1e6)  # Convert to MJ for readability
 
     for i, (data, label) in enumerate(zip(cv_data, cv_labels)):
         axes[1, 1].bar(x + (i - 1) * 0.25, data, 0.25, label=label,
@@ -1293,81 +1820,120 @@ def main(nc_file):
     print("Creating Section 8: Emission Factors and Other Parameters...")
     section8_figures = []
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-
-    # Emission factors (isoprene)
-    ef_vars = ['EF1_BTR', 'EF1_FET', 'EF1_FDT', 'EF1_SHR', 'EF1_GRS', 'EF1_CRP']
+    ef_vars   = ['EF1_BTR', 'EF1_FET', 'EF1_FDT', 'EF1_SHR', 'EF1_GRS', 'EF1_CRP']
     ef_labels = ['Broadleaf Trees', 'Fineleaf Evergreen Trees', 'Fineleaf Deciduous Trees',
                  'Shrubs', 'Grasses', 'Crops']
-    ef_values = [get_scalar_value(nc.variables[v]) for v in ef_vars]
 
-    colors = plt.cm.Greens(np.linspace(0.3, 0.9, len(ef_vars)))
-    axes[0].bar(ef_labels, ef_values, color=colors, edgecolor='#2d3748')
-    axes[0].set_ylabel('Emission Factor')
-    axes[0].set_title('Isoprene Emission Factors by Vegetation Type', fontsize=11, fontweight='bold')
-    axes[0].tick_params(axis='x', rotation=45)
-    axes[0].set_yscale('log')
-    for i, v in enumerate(ef_values):
-        axes[0].text(i, v * 1.1, f'{v:.0f}', ha='center', fontsize=9)
+    if is_regional:
+        # Spatial maps of emission factors
+        data_list   = [get_field_2d(nc.variables[v]) for v in ef_vars]
+        fig = plot_map_grid(data_list, ef_labels, lons, lats,
+                            'Isoprene Emission Factors \u2013 Spatial Distribution',
+                            units='unitless', cmap='YlGn', ncols=3)
+        pdf_path = os.path.join(pdf_dir, '08_emission_maps.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section8_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Spatial maps of isoprene emission factors for the six vegetation functional types.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
-    # Glacier elevation classes
-    glc_mec = get_1d_array(nc.variables['GLC_MEC'])
-    pct_glc_mec = get_1d_array(nc.variables['PCT_GLC_MEC'])
-    topo_glc_mec = get_1d_array(nc.variables['TOPO_GLC_MEC'])
+        # Harvest maps
+        harvest_vars   = ['CONST_HARVEST_VH1', 'CONST_HARVEST_VH2', 'CONST_HARVEST_SH1',
+                          'CONST_HARVEST_SH2', 'CONST_HARVEST_SH3']
+        harvest_labels = ['Primary Forest', 'Primary Non-Forest', 'Sec. Mature Forest',
+                          'Sec. Young Forest', 'Sec. Non-Forest']
+        harvest_data   = [get_field_2d(nc.variables[v]) for v in harvest_vars]
+        fig = plot_map_grid(harvest_data, harvest_labels, lons, lats,
+                            'Constant Harvest Rates \u2013 Spatial Distribution',
+                            units='gC/m\u00b2/yr', cmap='YlOrBr', ncols=3)
+        pdf_path = os.path.join(pdf_dir, '08b_harvest_maps.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section8_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Spatial maps of constant harvest rates for different land cover types.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
-    ax2 = axes[1].twinx()
-    x = range(len(pct_glc_mec))
-    axes[1].bar(x, pct_glc_mec, color='#63b3ed', alpha=0.7, label='Glacier %', edgecolor='#2d3748')
-    ax2.plot(x, topo_glc_mec, 'ro-', label='Mean Elevation', linewidth=2, markersize=8)
+        # Glacier elevation (domain-mean of PCT_GLC_MEC, GLC_MEC is 1-D)
+        glc_mec      = get_1d_array(nc.variables['GLC_MEC'])
+        pct_glc_data = np.array(nc.variables['PCT_GLC_MEC'][:], dtype=float)
+        topo_glc_data = np.array(nc.variables['TOPO_GLC_MEC'][:], dtype=float)
+        pct_glc_mec  = np.array([
+            float(np.nanmean(np.where(land_mask, pct_glc_data[i], np.nan)))
+            for i in range(pct_glc_data.shape[0])
+        ])
+        topo_glc_mec = np.array([
+            float(np.nanmean(np.where(land_mask, topo_glc_data[i], np.nan)))
+            for i in range(topo_glc_data.shape[0])
+        ])
 
-    axes[1].set_xticks(x)
-    axes[1].set_xticklabels([f'{glc_mec[i]:.0f}-{glc_mec[i+1]:.0f}m' for i in range(len(glc_mec)-1)], rotation=45)
-    axes[1].set_xlabel('Elevation Class')
-    axes[1].set_ylabel('Glacier Percent (%)', color='#3182ce')
-    ax2.set_ylabel('Mean Elevation (m)', color='red')
-    axes[1].set_title('Glacier Elevation Classes', fontsize=11, fontweight='bold')
-    axes[1].legend(loc='upper left')
-    ax2.legend(loc='upper right')
+    else:
+        ef_values = [get_scalar_value(nc.variables[v]) for v in ef_vars]
 
-    plt.tight_layout()
-    pdf_path = os.path.join(pdf_dir, '08_emission_glacier.pdf')
-    fig.savefig(pdf_path, bbox_inches='tight')
-    section8_figures.append({
-        'pdf_name': os.path.basename(pdf_path),
-        'caption': 'Isoprene emission factors by vegetation type and glacier distribution across elevation classes.',
-        'base64': fig_to_base64(fig)
-    })
-    plt.close(fig)
+        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+        colors = plt.cm.Greens(np.linspace(0.3, 0.9, len(ef_vars)))
+        axes[0].bar(ef_labels, ef_values, color=colors, edgecolor='#2d3748')
+        axes[0].set_ylabel('Emission Factor')
+        axes[0].set_title('Isoprene Emission Factors by Vegetation Type', fontsize=11, fontweight='bold')
+        axes[0].tick_params(axis='x', rotation=45)
+        axes[0].set_yscale('log')
+        for i, v in enumerate(ef_values):
+            axes[0].text(i, v * 1.1, f'{v:.0f}', ha='center', fontsize=9)
 
-    # Harvest parameters
-    fig, ax = plt.subplots(figsize=(10, 6))
+        glc_mec      = get_1d_array(nc.variables['GLC_MEC'])
+        pct_glc_mec  = get_1d_array(nc.variables['PCT_GLC_MEC'])
+        topo_glc_mec = get_1d_array(nc.variables['TOPO_GLC_MEC'])
 
-    harvest_vars = ['CONST_HARVEST_VH1', 'CONST_HARVEST_VH2', 'CONST_HARVEST_SH1',
-                    'CONST_HARVEST_SH2', 'CONST_HARVEST_SH3']
-    harvest_labels = ['Primary Forest', 'Primary Non-Forest', 'Secondary Mature Forest',
-                      'Secondary Young Forest', 'Secondary Non-Forest']
-    harvest_values = [get_scalar_value(nc.variables[v]) for v in harvest_vars]
+        ax2 = axes[1].twinx()
+        x_glc = range(len(pct_glc_mec))
+        axes[1].bar(x_glc, pct_glc_mec, color='#63b3ed', alpha=0.7, label='Glacier %', edgecolor='#2d3748')
+        ax2.plot(x_glc, topo_glc_mec, 'ro-', label='Mean Elevation', linewidth=2, markersize=8)
+        axes[1].set_xticks(x_glc)
+        axes[1].set_xticklabels([f'{glc_mec[i]:.0f}-{glc_mec[i+1]:.0f}m' for i in range(len(glc_mec)-1)], rotation=45)
+        axes[1].set_xlabel('Elevation Class')
+        axes[1].set_ylabel('Glacier Percent (%)', color='#3182ce')
+        ax2.set_ylabel('Mean Elevation (m)', color='red')
+        axes[1].set_title('Glacier Elevation Classes', fontsize=11, fontweight='bold')
+        axes[1].legend(loc='upper left')
+        ax2.legend(loc='upper right')
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '08_emission_glacier.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section8_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Isoprene emission factors by vegetation type and glacier distribution across elevation classes.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
-    colors = plt.cm.YlOrBr(np.linspace(0.3, 0.9, len(harvest_vars)))
-    ax.bar(harvest_labels, harvest_values, color=colors, edgecolor='#2d3748')
-    ax.set_ylabel('Harvest Rate (gC/m2/yr)')
-    ax.set_title('Constant Harvest Rates by Land Type', fontsize=12, fontweight='bold')
-    ax.tick_params(axis='x', rotation=30)
-    ax.grid(axis='y', alpha=0.3)
+        harvest_vars   = ['CONST_HARVEST_VH1', 'CONST_HARVEST_VH2', 'CONST_HARVEST_SH1',
+                          'CONST_HARVEST_SH2', 'CONST_HARVEST_SH3']
+        harvest_labels = ['Primary Forest', 'Primary Non-Forest', 'Secondary Mature Forest',
+                          'Secondary Young Forest', 'Secondary Non-Forest']
+        harvest_values = [get_scalar_value(nc.variables[v]) for v in harvest_vars]
 
-    for i, v in enumerate(harvest_values):
-        if v > 0:
-            ax.text(i, v + 10, f'{v:.1f}', ha='center', fontsize=9)
-
-    plt.tight_layout()
-    pdf_path = os.path.join(pdf_dir, '08b_harvest.pdf')
-    fig.savefig(pdf_path, bbox_inches='tight')
-    section8_figures.append({
-        'pdf_name': os.path.basename(pdf_path),
-        'caption': 'Constant harvest rates for different land cover types.',
-        'base64': fig_to_base64(fig)
-    })
-    plt.close(fig)
+        fig, ax = plt.subplots(figsize=(10, 6))
+        colors = plt.cm.YlOrBr(np.linspace(0.3, 0.9, len(harvest_vars)))
+        ax.bar(harvest_labels, harvest_values, color=colors, edgecolor='#2d3748')
+        ax.set_ylabel('Harvest Rate (gC/m\u00b2/yr)')
+        ax.set_title('Constant Harvest Rates by Land Type', fontsize=12, fontweight='bold')
+        ax.tick_params(axis='x', rotation=30)
+        ax.grid(axis='y', alpha=0.3)
+        for i, v in enumerate(harvest_values):
+            if v > 0:
+                ax.text(i, v + 10, f'{v:.1f}', ha='center', fontsize=9)
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '08b_harvest.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section8_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Constant harvest rates for different land cover types.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
     figures_data.append({
         'id': 'other',
@@ -1382,88 +1948,121 @@ def main(nc_file):
     print("Creating Section 9: Summary Overview...")
     section9_figures = []
 
-    # Create a comprehensive summary figure
-    fig = plt.figure(figsize=(16, 12))
+    nc_basename_stem = os.path.splitext(os.path.basename(nc_file))[0]
 
-    # Land cover pie (small)
-    ax1 = fig.add_subplot(2, 3, 1)
-    nonzero_land = land_values > 0.1
-    ax1.pie(land_values[nonzero_land], labels=[l for l, m in zip(land_labels, nonzero_land) if m],
-            autopct='%1.1f%%', colors=plt.cm.Set3(np.linspace(0, 1, sum(nonzero_land))))
-    ax1.set_title('Land Cover Types', fontsize=11, fontweight='bold')
+    if is_regional:
+        # Grid of key spatial maps
+        summary_vars = [
+            ('PCT_NATVEG',  'Natural Vegetation (%)',      'Greens'),
+            ('PCT_CROP',    'Cropland (%)',                 'YlOrBr'),
+            ('SOIL_COLOR',  'Soil Color Index',             'tab20b'),
+            ('FMAX',        'Max Saturated Fraction',       'Blues'),
+            ('zbedrock',    'Bedrock Depth (m)',            'copper'),
+            ('peatf',       'Peatland Fraction',            'Greens'),
+        ]
+        data_list, titles_list, cmaps_list = [], [], []
+        for var_name, title_str, cmap_str in summary_vars:
+            if var_name in nc.variables:
+                d = get_field_2d(nc.variables[var_name])
+                if d.ndim == 2:
+                    data_list.append(d)
+                    titles_list.append(title_str)
+                    cmaps_list.append(cmap_str)
+        fig = plot_map_grid(data_list, titles_list, lons, lats,
+                            f'Key Parameters Overview \u2013 {nc_basename_stem}',
+                            units='', cmap=cmaps_list, ncols=3)
+        pdf_path = os.path.join(pdf_dir, '09_summary.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section9_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Spatial overview of key surface data parameters.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
-    # Soil texture summary
-    ax2 = fig.add_subplot(2, 3, 2)
-    mean_sand = np.mean(pct_sand)
-    mean_clay = np.mean(pct_clay)
-    mean_silt = 100 - mean_sand - mean_clay
-    ax2.pie([mean_sand, mean_silt, mean_clay], labels=['Sand', 'Silt', 'Clay'],
-            autopct='%1.1f%%', colors=['#f6ad55', '#a0aec0', '#fc8181'])
-    ax2.set_title('Mean Soil Texture', fontsize=11, fontweight='bold')
+    else:
+        fig = plt.figure(figsize=(16, 12))
 
-    # Active PFTs summary
-    ax3 = fig.add_subplot(2, 3, 3)
-    active_labels = [all_pft_names.get(p, f'PFT {p}')[:20] for p in active_pfts[:8]]
-    active_lai_mean = [np.mean(lai_data[:, p, 0, 0]) for p in active_pfts[:8]]
-    ax3.barh(range(len(active_labels)), active_lai_mean, color=plt.cm.Greens(np.linspace(0.3, 0.9, len(active_labels))))
-    ax3.set_yticks(range(len(active_labels)))
-    ax3.set_yticklabels(active_labels, fontsize=8)
-    ax3.set_xlabel('Mean LAI')
-    ax3.set_title('Top Active PFTs by LAI', fontsize=11, fontweight='bold')
+        ax1 = fig.add_subplot(2, 3, 1)
+        land_labels = ['Natural Vegetation', 'Cropland', 'Urban', 'Lake', 'Wetland', 'Glacier']
+        land_values = np.array([
+            pct_natveg, pct_crop, np.sum(pct_urban),
+            get_scalar_value(nc.variables['PCT_LAKE']),
+            get_scalar_value(nc.variables['PCT_WETLAND']),
+            get_scalar_value(nc.variables['PCT_GLACIER'])
+        ])
+        nonzero_land = land_values > 0.1
+        ax1.pie(land_values[nonzero_land],
+                labels=[l for l, m in zip(land_labels, nonzero_land) if m],
+                autopct='%1.1f%%', colors=plt.cm.Set3(np.linspace(0, 1, sum(nonzero_land))))
+        ax1.set_title('Land Cover Types', fontsize=11, fontweight='bold')
 
-    # Key scalars table
-    ax4 = fig.add_subplot(2, 3, (4, 6))
-    ax4.axis('off')
+        ax2 = fig.add_subplot(2, 3, 2)
+        mean_sand = float(np.mean(pct_sand))
+        mean_clay = float(np.mean(pct_clay))
+        mean_silt = 100 - mean_sand - mean_clay
+        ax2.pie([mean_sand, mean_silt, mean_clay], labels=['Sand', 'Silt', 'Clay'],
+                autopct='%1.1f%%', colors=['#f6ad55', '#a0aec0', '#fc8181'])
+        ax2.set_title('Mean Soil Texture', fontsize=11, fontweight='bold')
 
-    key_params = [
-        ('Longitude', f'{lon:.3f} E'),
-        ('Latitude', f'{lat:.3f} N'),
-        ('Natural Vegetation', f'{pct_natveg:.1f}%'),
-        ('Cropland', f'{pct_crop:.1f}%'),
-        ('Urban', f'{np.sum(pct_urban):.2f}%'),
-        ('Bedrock Depth', f'{get_scalar_value(nc.variables["zbedrock"]):.2f} m'),
-        ('Slope', f'{get_scalar_value(nc.variables["SLOPE"]):.2f} deg'),
-        ('Soil Color Index', f'{int(get_scalar_value(nc.variables["SOIL_COLOR"]))}'),
-        ('Max Saturated Fraction', f'{get_scalar_value(nc.variables["FMAX"]):.3f}'),
-        ('Peatland Fraction', f'{get_scalar_value(nc.variables["peatf"]):.3f}'),
-    ]
+        ax3 = fig.add_subplot(2, 3, 3)
+        active_labels    = [all_pft_names.get(p, f'PFT {p}')[:20] for p in active_pfts[:8]]
+        active_lai_mean  = [float(np.mean(lai_data[:, p, 0, 0])) for p in active_pfts[:8]]
+        ax3.barh(range(len(active_labels)), active_lai_mean,
+                 color=plt.cm.Greens(np.linspace(0.3, 0.9, max(len(active_labels), 1))))
+        ax3.set_yticks(range(len(active_labels)))
+        ax3.set_yticklabels(active_labels, fontsize=8)
+        ax3.set_xlabel('Mean LAI')
+        ax3.set_title('Top Active PFTs by LAI', fontsize=11, fontweight='bold')
 
-    table_data = [[p[0], p[1]] for p in key_params]
-    table = ax4.table(cellText=table_data, colLabels=['Parameter', 'Value'],
-                      loc='center', cellLoc='left', colWidths=[0.4, 0.3])
-    table.auto_set_font_size(False)
-    table.set_fontsize(11)
-    table.scale(1.2, 1.8)
+        ax4 = fig.add_subplot(2, 3, (4, 6))
+        ax4.axis('off')
+        key_params = [
+            ('Longitude',            f'{lon:.3f}\u00b0E'),
+            ('Latitude',             f'{lat:.3f}\u00b0N'),
+            ('Natural Vegetation',   f'{pct_natveg:.1f}%'),
+            ('Cropland',             f'{pct_crop:.1f}%'),
+            ('Urban (total)',         f'{float(np.sum(pct_urban)):.2f}%'),
+            ('Bedrock Depth',        f'{get_scalar_value(nc.variables["zbedrock"]):.2f} m'),
+            ('Slope',                f'{get_scalar_value(nc.variables["SLOPE"]):.2f}\u00b0'),
+            ('Soil Color Index',     f'{int(get_scalar_value(nc.variables["SOIL_COLOR"]))}'),
+            ('Max Saturated Frac.',  f'{get_scalar_value(nc.variables["FMAX"]):.3f}'),
+            ('Peatland Fraction',    f'{get_scalar_value(nc.variables["peatf"]):.3f}'),
+        ]
+        table_data = [[p[0], p[1]] for p in key_params]
+        table = ax4.table(cellText=table_data, colLabels=['Parameter', 'Value'],
+                          loc='center', cellLoc='left', colWidths=[0.4, 0.3])
+        table.auto_set_font_size(False)
+        table.set_fontsize(11)
+        table.scale(1.2, 1.8)
+        for i in range(len(table_data) + 1):
+            for j in range(2):
+                cell = table[(i, j)]
+                if i == 0:
+                    cell.set_facecolor('#667eea')
+                    cell.set_text_props(color='white', fontweight='bold')
+                elif i % 2 == 0:
+                    cell.set_facecolor('#f7fafc')
+                else:
+                    cell.set_facecolor('#edf2f7')
+        ax4.set_title('Key Site Parameters Summary', fontsize=12, fontweight='bold', pad=20)
 
-    # Style the table
-    for i in range(len(table_data) + 1):
-        for j in range(2):
-            cell = table[(i, j)]
-            if i == 0:
-                cell.set_facecolor('#667eea')
-                cell.set_text_props(color='white', fontweight='bold')
-            elif i % 2 == 0:
-                cell.set_facecolor('#f7fafc')
-            else:
-                cell.set_facecolor('#edf2f7')
-
-    ax4.set_title('Key Site Parameters Summary', fontsize=12, fontweight='bold', pad=20)
-
-    fig.suptitle('Surface Data Overview - BE-Lon Site', fontsize=16, fontweight='bold')
-    plt.tight_layout()
-    pdf_path = os.path.join(pdf_dir, '09_summary.pdf')
-    fig.savefig(pdf_path, bbox_inches='tight')
-    section9_figures.append({
-        'pdf_name': os.path.basename(pdf_path),
-        'caption': 'Comprehensive summary of key surface data parameters for the BE-Lon site.',
-        'base64': fig_to_base64(fig)
-    })
-    plt.close(fig)
+        fig.suptitle(f'Surface Data Overview \u2013 {nc_basename_stem}',
+                     fontsize=16, fontweight='bold')
+        plt.tight_layout()
+        pdf_path = os.path.join(pdf_dir, '09_summary.pdf')
+        fig.savefig(pdf_path, bbox_inches='tight')
+        section9_figures.append({
+            'pdf_name': os.path.basename(pdf_path),
+            'caption': 'Comprehensive summary of key surface data parameters.',
+            'base64': fig_to_base64(fig)
+        })
+        plt.close(fig)
 
     figures_data.append({
         'id': 'summary',
         'title': 'Summary Overview',
-        'description': 'A comprehensive overview combining key parameters for quick reference during discussions.',
+        'description': 'A comprehensive overview combining key parameters for quick reference.',
         'figures': section9_figures
     })
 
@@ -1472,7 +2071,7 @@ def main(nc_file):
 
     # Generate HTML report
     print("Generating HTML report...")
-    html_file = create_html_report(figures_data, nc_file, output_dir)
+    html_file = create_html_report(figures_data, nc_file, output_dir, metadata_str)
 
     print(f"\nVisualization complete!")
     print(f"PDF figures saved in: {pdf_dir}")
