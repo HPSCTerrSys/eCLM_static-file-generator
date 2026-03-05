@@ -27,7 +27,7 @@ python mkcropsite.py <surfdata.nc> --crop-type <CFT> [-o output.nc]
 |---------------------|--------------------------------------------------------------------------------------------------------|
 | `surfdata.nc`       | Input CLM5 single-site surface data file                                                               |
 | `--crop-type <CFT>` | Crop type as CFT global index (15–78) **or** a case-insensitive name substring (e.g. `"winter wheat"`) |
-| `-o output.nc`      | Output file path (default: `<input_stem>_cropsite.nc` next to the input)                               |
+| `-o output.nc`      | Output file path (default: `<input_stem>_<crop_name>.nc` next to the input)                            |
 | `--list-crops`      | Print all CFT types present in the file and exit                                                       |
 
 ### Examples

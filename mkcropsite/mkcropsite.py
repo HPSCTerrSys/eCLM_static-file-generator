@@ -181,7 +181,7 @@ Examples:
                              "case-insensitive name substring (e.g. 'wheat')")
     parser.add_argument("-o", "--output", default=None,
                         help="Output file path "
-                             "(default: <input_stem>_cropsite.nc next to input)")
+                             "(default: <input_stem>_<crop_name>.nc next to input)")
     parser.add_argument("--list-crops", action="store_true",
                         help="List all CFT types present in the file and exit")
 
@@ -232,8 +232,10 @@ Examples:
     if args.output:
         out_path = args.output
     else:
+        cft_name = CFT_NAMES.get(cft_global, f"cft{cft_global}")
+        suffix = "_" + cft_name.lower().replace(" ", "_").replace("–", "-")
         base, ext = os.path.splitext(args.surfdata)
-        out_path = base + "_cropsite" + ext
+        out_path = base + suffix + ext
 
     if os.path.abspath(out_path) == os.path.abspath(args.surfdata):
         print("Error: Output path is the same as the input. "
