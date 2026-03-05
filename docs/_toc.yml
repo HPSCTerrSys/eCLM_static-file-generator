@@ -14,3 +14,4 @@ parts:
     - file: users_guide/3_create_domain_file
     - file: users_guide/4_create_surface_file
     - file: users_guide/5_modifications_surface_domain_file
+    - file: users_guide/6_create_crop_site
