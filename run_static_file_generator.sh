@@ -5,25 +5,35 @@ BASEDIR="$(cd "$(dirname "$0")" && pwd)"
 
 usage() {
     cat <<EOF
-Usage: $0 --ptname NAME --slat S_LAT --nlat N_LAT --elon E_LON --wlon W_LON --nx NX --ny NY --account ACCOUNT --partition PARTITION [--imask IMASK]
+Usage: $0 --grid NAME --account ACCOUNT --partition PARTITION [OPTIONS]
 
-Create all eCLM static files for a rectilinear grid in one go.
+Create all eCLM static files for a given grid in one go.
 
-Required arguments (passed to mkscripgrid.py):
-  --ptname      Grid name
+Required arguments:
+  --grid        Grid name (used in output filenames)
+  --account     SLURM account/project
+  --partition   SLURM partition (e.g. mem192)
+
+Grid type (default: rect):
+  --grid-type   Grid type: rect, curv, or icos
+
+For --grid-type rect (rectilinear, default):
   --slat        South latitude  [-90, 90]
   --nlat        North latitude  [-90, 90]
   --elon        East longitude  [0, 360)
   --wlon        West longitude  [0, 360)
   --nx          Number of grid points along longitude
   --ny          Number of grid points along latitude
+  --imask       Mask type (default: 1; 1=nomask, 0=noocean)
 
-Required SLURM arguments (for mapping file creation):
-  --account     SLURM account/project
-  --partition   SLURM partition (e.g. mem192)
+For --grid-type curv (curvilinear):
+  --gridfile    Path to input netCDF file with 2D lat/lon
+  --latvar      Name of latitude variable (default: lat)
+  --lonvar      Name of longitude variable (default: lon)
+  Requires a Conda environment named NCL_environment with NCL installed.
 
-Optional:
-  --imask       Mask type (default: 1, 1=nomask, 0=noocean)
+For --grid-type icos (icosahedral/triangular):
+  --gridfile    Path to input ICON grid file (netCDF)
 
 Environment variables:
   CSMDATA    Path to CLM raw data (required)
@@ -32,29 +42,36 @@ EOF
 }
 
 # --- Parse arguments ---
-PTNAME="" S_LAT="" N_LAT="" E_LON="" W_LON="" NX="" NY="" IMASK=1
+GRIDNAME="" GRID_TYPE="rect"
+S_LAT="" N_LAT="" E_LON="" W_LON="" NX="" NY="" IMASK=1
+GRIDFILE="" LATVAR="lat" LONVAR="lon"
 ACCOUNT="" PARTITION=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --ptname) PTNAME="$2"; shift 2 ;;
-        --slat)   S_LAT="$2";  shift 2 ;;
-        --nlat)   N_LAT="$2";  shift 2 ;;
-        --elon)   E_LON="$2";  shift 2 ;;
-        --wlon)   W_LON="$2";  shift 2 ;;
-        --nx)     NX="$2";     shift 2 ;;
-        --ny)     NY="$2";     shift 2 ;;
-        --imask)     IMASK="$2";     shift 2 ;;
-        --account)   ACCOUNT="$2";   shift 2 ;;
-        --partition) PARTITION="$2"; shift 2 ;;
+        --grid)       GRIDNAME="$2";   shift 2 ;;
+        --grid-type)  GRID_TYPE="$2";  shift 2 ;;
+        --slat)       S_LAT="$2";      shift 2 ;;
+        --nlat)       N_LAT="$2";      shift 2 ;;
+        --elon)       E_LON="$2";      shift 2 ;;
+        --wlon)       W_LON="$2";      shift 2 ;;
+        --nx)         NX="$2";         shift 2 ;;
+        --ny)         NY="$2";         shift 2 ;;
+        --imask)      IMASK="$2";      shift 2 ;;
+        --gridfile)   GRIDFILE="$2";   shift 2 ;;
+        --latvar)     LATVAR="$2";     shift 2 ;;
+        --lonvar)     LONVAR="$2";     shift 2 ;;
+        --account)    ACCOUNT="$2";    shift 2 ;;
+        --partition)  PARTITION="$2";  shift 2 ;;
         -h|--help) usage ;;
         *) echo "Unknown argument: $1"; usage ;;
     esac
 done
 
-for var in PTNAME S_LAT N_LAT E_LON W_LON NX NY ACCOUNT PARTITION; do
+# --- Validate common required arguments ---
+for var in GRIDNAME ACCOUNT PARTITION; do
     if [[ -z "${!var}" ]]; then
-        echo "Error: --$(echo $var | tr '[:upper:]' '[:lower:]' | tr '_' '-') is required"
+        echo "Error: --$(echo "$var" | tr '[:upper:]' '[:lower:]' | tr '_' '-') is required"
         usage
     fi
 done
@@ -64,11 +81,36 @@ if [[ -z "${CSMDATA:-}" ]]; then
     exit 1
 fi
 
-GRIDNAME="$PTNAME"
+# --- Validate grid-type-specific arguments ---
+case "$GRID_TYPE" in
+    rect)
+        for var in S_LAT N_LAT E_LON W_LON NX NY; do
+            if [[ -z "${!var}" ]]; then
+                echo "Error: --$(echo "$var" | tr '[:upper:]' '[:lower:]' | tr '_' '-') is required for --grid-type rect"
+                usage
+            fi
+        done
+        ;;
+    curv|icos)
+        if [[ -z "$GRIDFILE" ]]; then
+            echo "Error: --gridfile is required for --grid-type $GRID_TYPE"
+            usage
+        fi
+        if [[ ! -f "$GRIDFILE" ]]; then
+            echo "Error: gridfile not found: $GRIDFILE"
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Error: unknown --grid-type '$GRID_TYPE' (must be rect, curv, or icos)"
+        usage
+        ;;
+esac
+
 CDATE="$(date +%y%m%d)"
 
 echo "=== eCLM static file generation ==="
-echo "Grid: $GRIDNAME  (${NX}x${NY}, lat ${S_LAT}..${N_LAT}, lon ${W_LON}..${E_LON})"
+echo "Grid: $GRIDNAME  (type: $GRID_TYPE)"
 
 # ============================================================
 # Step 1: Create grid file
@@ -76,26 +118,56 @@ echo "Grid: $GRIDNAME  (${NX}x${NY}, lat ${S_LAT}..${N_LAT}, lon ${W_LON}..${E_L
 echo ""
 echo "=== Step 1: Creating SCRIP grid file ==="
 
-GRIDFILE="SCRIPgrid_${GRIDNAME}_nomask_c${CDATE}.nc"
 if [[ "$IMASK" -eq 0 ]]; then
-    GRIDFILE="SCRIPgrid_${GRIDNAME}_noocean_c${CDATE}.nc"
-elif [[ "$IMASK" -ne 1 ]]; then
-    GRIDFILE="SCRIPgrid_${GRIDNAME}_mask_c${CDATE}.nc"
+    GRIDFILE_SUFFIX="noocean"
+elif [[ "$IMASK" -eq 1 ]]; then
+    GRIDFILE_SUFFIX="nomask"
+else
+    GRIDFILE_SUFFIX="mask"
 fi
+SCRIP_OUTFILE="SCRIPgrid_${GRIDNAME}_${GRIDFILE_SUFFIX}_c${CDATE}.nc"
+SCRIP_OUTPATH="$BASEDIR/mkmapgrids/$SCRIP_OUTFILE"
 
-(
-    cd "$BASEDIR/mkmapgrids"
-    PTNAME="$PTNAME" S_LAT="$S_LAT" N_LAT="$N_LAT" E_LON="$E_LON" W_LON="$W_LON" \
-    NX="$NX" NY="$NY" IMASK="$IMASK" PRINT="TRUE" \
-    python mkscripgrid.py
-)
+case "$GRID_TYPE" in
+    rect)
+        echo "Grid: ${NX}x${NY}, lat ${S_LAT}..${N_LAT}, lon ${W_LON}..${E_LON}"
+        (
+            cd "$BASEDIR/mkmapgrids"
+            PTNAME="$GRIDNAME" S_LAT="$S_LAT" N_LAT="$N_LAT" E_LON="$E_LON" W_LON="$W_LON" \
+            NX="$NX" NY="$NY" IMASK="$IMASK" PRINT="TRUE" \
+            python mkscripgrid.py
+r        )
+        ;;
+    curv)
+        echo "Curvilinear grid from: $GRIDFILE"
+        (
+            cd "$BASEDIR/mkmapgrids"
+            GRIDFILE_ABS="$(realpath "$GRIDFILE")"
+            conda run -n NCL_environment ncl \
+                "ifile=\"${GRIDFILE_ABS}\"" \
+                "ofile=\"${SCRIP_OUTPATH}\"" \
+                "latvar=\"${LATVAR}\"" \
+                "lonvar=\"${LONVAR}\"" \
+                mkscrip_curv.ncl
+        )
+        ;;
+    icos)
+        echo "Icosahedral grid from: $GRIDFILE"
+        (
+            cd "$BASEDIR/mkmapgrids"
+            python mkscrip_icos.py \
+                --ifile "$GRIDFILE" \
+                --ofile "$SCRIP_OUTPATH" \
+                --overwrite
+        )
+        ;;
+esac
 
-GRIDFILE_PATH="$BASEDIR/mkmapgrids/$GRIDFILE"
-if [[ ! -f "$GRIDFILE_PATH" ]]; then
-    echo "Error: Expected grid file not found: $GRIDFILE_PATH"
+if [[ ! -f "$SCRIP_OUTPATH" ]]; then
+    echo "Error: Expected grid file not found: $SCRIP_OUTPATH"
     exit 1
 fi
-echo "Step 1 complete: $GRIDFILE_PATH"
+echo "Step 1 complete: $SCRIP_OUTPATH"
 
 # ============================================================
 # Step 2: Create mapping files
@@ -105,7 +177,7 @@ echo "=== Step 2: Creating mapping files (SLURM job) ==="
 
 TMPSCRIPT="$(mktemp "$BASEDIR/mkmapdata/runscript_mkmapdata_tmp_XXXX.sh")"
 sed -e "s|^export GRIDNAME=.*|export GRIDNAME=\"${GRIDNAME}\"|" \
-    -e "s|^export GRIDFILE=.*|export GRIDFILE=\"${GRIDFILE_PATH}\"|" \
+    -e "s|^export GRIDFILE=.*|export GRIDFILE=\"${SCRIP_OUTPATH}\"|" \
     -e "s|^#SBATCH --account=.*|#SBATCH --account=${ACCOUNT}|" \
     -e "s|^#SBATCH --partition=.*|#SBATCH --partition=${PARTITION}|" \
     "$BASEDIR/mkmapdata/runscript_mkmapdata.sh" > "$TMPSCRIPT"
@@ -210,6 +282,6 @@ echo "Step 4 complete: $SURFFILE"
 # ============================================================
 echo ""
 echo "=== All done ==="
-echo "Grid file:    $GRIDFILE_PATH"
+echo "Grid file:    $SCRIP_OUTPATH"
 echo "Domain file:  $DOMAIN_LND"
 echo "Surface file: $SURFFILE"
