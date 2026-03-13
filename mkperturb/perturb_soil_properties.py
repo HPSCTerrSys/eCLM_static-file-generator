@@ -1,5 +1,29 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+Perturb soil hydraulic properties in eCLM surface files for ensemble generation.
+
+Two perturbation modes are supported:
+
+- **hydraulic**: Soil hydraulic properties (saturated matric potential, porosity,
+  shape parameter, saturated hydraulic conductivity) are computed from the
+  Clapp-Hornberger pedotransfer functions as implemented in CLM, adjusted for
+  organic matter content, and then multiplied by a spatially uniform Gaussian
+  random factor. The perturbed properties are written as new variables
+  (PSIS_SAT_adj, THETAS_adj, SHAPE_PARAM_adj, KSAT_adj) on the full CLM ground
+  layer grid (nlevgrnd = 25).
+
+- **texture**: Sand, clay, and organic matter fractions are perturbed by adding
+  spatially uniform noise drawn from a uniform distribution. Physical constraints
+  (non-negativity, sand + clay <= 100 %) are enforced after perturbation.
+
+Each call to the main perturbation functions generates one ensemble member and
+writes it to a NetCDF file named after the input file with a zero-padded member
+index appended (e.g. surfdata_..._00001.nc).
+
+Reproducibility is supported via an explicit --seed argument or by
+saving/restoring the NumPy random state to/from a JSON file (--state-file).
+"""
 
 import argparse
 import datetime
@@ -10,13 +34,14 @@ import netCDF4 as nc
 import numpy as np
 
 
-# Helper functions
-
-
-# Helper function to serialize / deserialize random state with json
-
-
 def rnd_state_serialize(state_file):
+    """Save the current NumPy random state to a JSON file.
+
+    Parameters
+    ----------
+    state_file : str
+        Path to the output JSON file.
+    """
     tmp_state = np.random.get_state()
     save_state = ()
     for i in tmp_state:
@@ -28,6 +53,13 @@ def rnd_state_serialize(state_file):
 
 
 def rnd_state_deserialize(state_file):
+    """Restore the NumPy random state from a JSON file written by rnd_state_serialize.
+
+    Parameters
+    ----------
+    state_file : str
+        Path to the JSON file containing the saved random state.
+    """
     tmp_state = json.load(open(state_file, "r"))
     load_state = ()
     for i in tmp_state:
@@ -38,8 +70,21 @@ def rnd_state_deserialize(state_file):
     np.random.set_state(load_state)
 
 
-# Helper function - copy attributes and dimensions
 def copy_attr_dim(src, dst):
+    """Copy global attributes and dimensions from a source to a destination NetCDF dataset.
+
+    All original global attributes are copied with the prefix
+    'original_attribute_'. The dimensions are copied with their sizes.
+    Additionally, 'perturbed_by' (from $USER) and 'perturbed_on_date' attributes
+    are added to the destination.
+
+    Parameters
+    ----------
+    src : netCDF4.Dataset
+        Open source dataset to copy from.
+    dst : netCDF4.Dataset
+        Open destination dataset to copy into.
+    """
     # copy attributes
     for name in src.ncattrs():
         dst.setncattr("original_attribute_" + name, src.getncattr(name))
@@ -52,7 +97,34 @@ def copy_attr_dim(src, dst):
                   datetime.datetime.today().strftime("%d.%m.%y"))
 
 
-def disturb_sand_clay(input_file, output_dir, iensemble=0, noise_range=10):  # Yorck code
+def disturb_sand_clay(input_file, output_dir, iensemble=0, noise_range=10):
+    """Perturb soil texture by adding spatially uniform noise to sand, clay, and OM fractions.
+
+    A single scalar noise value is drawn independently for each of PCT_SAND,
+    PCT_CLAY, and ORGANIC from a uniform distribution on
+    [-noise_range, +noise_range] and added to the entire spatial field. Physical
+    constraints are enforced afterwards:
+      - Cells with zero sand are left at zero (ocean/glacier mask).
+      - sand + clay is kept <= 100 %.
+      - Values are clipped to [min_observed, 100] for each fraction.
+      - Organic matter is clipped to [0, 130] kg/m³ and zeroed where the
+        original is zero.
+
+    The output file is named after the input file with a zero-padded ensemble
+    index appended, e.g. surfdata_..._00001.nc.
+
+    Parameters
+    ----------
+    input_file : str
+        Path to the source eCLM surface NetCDF file.
+    output_dir : str
+        Directory in which the perturbed file is written.
+    iensemble : int, optional
+        0-based ensemble member index used for output file naming (default: 0).
+    noise_range : float, optional
+        Half-range of the uniform noise in percentage points (default: 10,
+        i.e. noise drawn from [-10, +10]).
+    """
     sorig = input_file
     ncid = nc.Dataset(sorig, "r")
     # Get the variables
@@ -78,8 +150,8 @@ def disturb_sand_clay(input_file, output_dir, iensemble=0, noise_range=10):  # Y
 
     sand_dis = sand + noise_sand
     clay_dis = clay + noise_clay
-        sand_dis[idx_zero] = 0
-        clay_dis[idx_zero] = 0
+    sand_dis[idx_zero] = 0
+    clay_dis[idx_zero] = 0
 
         idx = (sand_dis + clay_dis) > 100
         temp = (sand_dis + clay_dis - 100) / 2
@@ -191,7 +263,52 @@ def soil_parameters(
     max_watsat=0.93,
     hksat_clip=(0.5, 2.0),
 ):
+    """Perturb soil hydraulic properties directly using CLM pedotransfer functions.
 
+    For each ensemble member, four hydraulic properties are computed from the
+    Clapp-Hornberger pedotransfer functions as coded in CLM, adjusted for organic
+    matter content following the CLM parameterization, and then multiplied by a
+    spatially uniform scalar drawn from N(1, std_*). The perturbed fields are
+    written on the full CLM ground layer grid (nlevgrnd = 25 levels) as new
+    variables alongside all original variables:
+
+      - PSIS_SAT_adj : saturated soil matric potential (mmH2O)
+      - THETAS_adj   : porosity (vol/vol), clipped to [0, max_watsat]
+      - SHAPE_PARAM_adj : Clapp-Hornberger b parameter (unitless)
+      - KSAT_adj     : saturated hydraulic conductivity (mm/s)
+
+    The soil layer geometry and pedotransfer coefficients follow the CLM5 source
+    code. Organic matter adjustment uses the parameterization of Lawrence and
+    Slater (2008).
+
+    The output file is named after the input file with a zero-padded ensemble
+    index appended, e.g. surfdata_..._00001.nc.
+
+    Parameters
+    ----------
+    input_file : str
+        Path to the source eCLM surface NetCDF file.
+    output_dir : str
+        Directory in which the perturbed file is written.
+    iensemble : int, optional
+        0-based ensemble member index used for output file naming (default: 0).
+    std_sucsat : float, optional
+        Std dev of the multiplicative Gaussian noise for saturated matric
+        potential (default: 0.2).
+    std_watsat : float, optional
+        Std dev of the multiplicative Gaussian noise for porosity (default: 0.05).
+    std_bsw : float, optional
+        Std dev of the multiplicative Gaussian noise for the shape (b) parameter
+        (default: 0.1).
+    std_hksat : float, optional
+        Std dev of the multiplicative Gaussian noise for saturated hydraulic
+        conductivity (default: 0.1).
+    max_watsat : float, optional
+        Upper clip applied to the perturbed porosity (default: 0.93).
+    hksat_clip : tuple of float, optional
+        (min, max) bounds applied to the Ksat multiplicative factor before
+        scaling, to prevent extreme values (default: (0.5, 2.0)).
+    """
     sorig = input_file
     stem = os.path.splitext(os.path.basename(sorig))[0]
     sname = os.path.join(output_dir, f"{stem}_{str(iensemble + 1).zfill(5)}.nc")
@@ -403,6 +520,7 @@ def soil_parameters(
 
 
 def main():
+    """Parse command-line arguments and run the ensemble perturbation."""
     parser = argparse.ArgumentParser(
         description="Perturb soil hydraulic properties in an eCLM surface file."
     )
