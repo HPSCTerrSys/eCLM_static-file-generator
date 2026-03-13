@@ -5,6 +5,8 @@ soil properties. Each ensemble member is written as a separate NetCDF
 file named after the input file with a zero-padded index appended
 (e.g. `surfdata_..._00001.nc`).
 
+Original author: Yorck Ewerdwalbesloh
+
 ## Requirements
 
 - Python 3

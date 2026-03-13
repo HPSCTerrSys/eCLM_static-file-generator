@@ -23,6 +23,8 @@ index appended (e.g. surfdata_..._00001.nc).
 
 Reproducibility is supported via an explicit --seed argument or by
 saving/restoring the NumPy random state to/from a JSON file (--state-file).
+
+Original author: Yorck Ewerdwalbesloh
 """
 
 import argparse
