@@ -52,7 +52,7 @@ def copy_attr_dim(src, dst):
                   datetime.datetime.today().strftime("%d.%m.%y"))
 
 
-def disturbSandClay(input_file, output_dir, iensemble=0):  # Yorck code
+def disturb_sand_clay(input_file, output_dir, iensemble=0):  # Yorck code
     sorig = input_file
     ncid = nc.Dataset(sorig, "r")
     # Get the variables
@@ -180,7 +180,7 @@ def disturbSandClay(input_file, output_dir, iensemble=0):  # Yorck code
             dst.variables["ORGANIC"][:] = om_dis.reshape(dst.variables["ORGANIC"].shape)
 
 
-def SoilParameters(input_file, output_dir, iensemble=0):
+def soil_parameters(input_file, output_dir, iensemble=0):
 
     sorig = input_file
     stem = os.path.splitext(os.path.basename(sorig))[0]
@@ -421,9 +421,9 @@ def main():
 
     for i in range(args.start, args.start + args.count):
         if args.mode == "hydraulic":
-            SoilParameters(args.input_file, args.output_dir, i)
+            soil_parameters(args.input_file, args.output_dir, i)
         else:
-            disturbSandClay(args.input_file, args.output_dir, i)
+            disturb_sand_clay(args.input_file, args.output_dir, i)
         print(f"Done with ensemble member {i + 1}")
 
 
