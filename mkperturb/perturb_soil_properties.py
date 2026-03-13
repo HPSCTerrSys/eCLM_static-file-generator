@@ -264,6 +264,7 @@ def soil_parameters(
     std_hksat=0.1,
     max_watsat=0.93,
     hksat_clip=(0.5, 2.0),
+    n_perturb_levels=25,
 ):
     """Perturb soil hydraulic properties directly using CLM pedotransfer functions.
 
@@ -310,6 +311,10 @@ def soil_parameters(
     hksat_clip : tuple of float, optional
         (min, max) bounds applied to the Ksat multiplicative factor before
         scaling, to prevent extreme values (default: (0.5, 2.0)).
+    n_perturb_levels : int, optional
+        Number of levels (counting from the surface) to which the random
+        perturbation is applied. Deeper levels receive the unperturbed CLM
+        mean values. Must be <= nlevgrnd (25). Default: 25 (all levels).
     """
     sorig = input_file
     stem = os.path.splitext(os.path.basename(sorig))[0]
@@ -324,7 +329,6 @@ def soil_parameters(
         dim_lvl = src.dimensions["nlevsoi"].size
         dim_lat = src.dimensions["lsmlat"].size
         dim_lon = src.dimensions["lsmlon"].size
-        dim_lvl_p = 25
         dim_types = 3
 
         # perturb organic matter
@@ -447,7 +451,7 @@ def soil_parameters(
         for j in range(nlevgrnd):
             zsoi[j] = 0.5 * (zisoi[j] + zisoi[j + 1])
 
-        for j in range(dim_lvl_p):
+        for j in range(nlevgrnd):
 
             # use right sand and clay values (from depth that we computed), as well as organic matter for adjustment
             if j == 0:
@@ -507,18 +511,20 @@ def soil_parameters(
             hksat = uncon_frac * uncon_hksat + (perc_frac * om_frac) * om_hksat
 
             # perturb adjusted parameters and write them in the surface files
-
-            dst.variables["PSIS_SAT_adj"][j, :, :] = sucsat * random_value_sucsat
-
-            dst.variables["THETAS_adj"][j, :, :] = np.clip(
-                watsat * random_value_watsat, 0, max_watsat
-            )
-
-            dst.variables["SHAPE_PARAM_adj"][j, :, :] = bsw * random_value_bsw
-
-            dst.variables["KSAT_adj"][j, :, :] = hksat * np.clip(
-                random_value_hksat, hksat_clip[0], hksat_clip[1]
-            )
+            if j < n_perturb_levels:
+                dst.variables["PSIS_SAT_adj"][j, :, :] = sucsat * random_value_sucsat
+                dst.variables["THETAS_adj"][j, :, :] = np.clip(
+                    watsat * random_value_watsat, 0, max_watsat
+                )
+                dst.variables["SHAPE_PARAM_adj"][j, :, :] = bsw * random_value_bsw
+                dst.variables["KSAT_adj"][j, :, :] = hksat * np.clip(
+                    random_value_hksat, hksat_clip[0], hksat_clip[1]
+                )
+            else:
+                dst.variables["PSIS_SAT_adj"][j, :, :] = sucsat
+                dst.variables["THETAS_adj"][j, :, :] = np.clip(watsat, 0, max_watsat)
+                dst.variables["SHAPE_PARAM_adj"][j, :, :] = bsw
+                dst.variables["KSAT_adj"][j, :, :] = hksat
 
 
 def main():
@@ -544,6 +550,7 @@ def main():
     parser.add_argument("--std-hksat", type=float, default=0.1, help="Std dev of multiplicative noise for saturated hydraulic conductivity (default: 0.1).")
     parser.add_argument("--max-watsat", type=float, default=0.93, help="Upper clip for perturbed porosity (default: 0.93).")
     parser.add_argument("--hksat-clip", type=float, nargs=2, default=[0.5, 2.0], metavar=("MIN", "MAX"), help="Clip bounds for the Ksat multiplicative factor (default: 0.5 2.0).")
+    parser.add_argument("--n-perturb-levels", type=int, default=25, help="Number of levels from the surface to which the perturbation is applied; deeper levels receive unperturbed CLM mean values (default: 25, i.e. all levels).")
     # Perturbation parameters — texture mode
     parser.add_argument("--noise-range", type=float, default=10.0, help="Half-range of uniform noise for sand/clay/OM perturbation in percentage points (default: 10).")
     parser.add_argument(
@@ -584,6 +591,7 @@ def main():
                 std_hksat=args.std_hksat,
                 max_watsat=args.max_watsat,
                 hksat_clip=args.hksat_clip,
+                n_perturb_levels=args.n_perturb_levels,
             )
         else:
             disturb_sand_clay(args.input_file, args.output_dir, i, noise_range=args.noise_range)
