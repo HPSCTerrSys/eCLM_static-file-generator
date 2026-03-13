@@ -155,103 +155,103 @@ def disturb_sand_clay(input_file, output_dir, iensemble=0, noise_range=10):
     sand_dis[idx_zero] = 0
     clay_dis[idx_zero] = 0
 
-        idx = (sand_dis + clay_dis) > 100
-        temp = (sand_dis + clay_dis - 100) / 2
-        sand_dis[idx] = sand_dis[idx] - temp[idx]
-        clay_dis[idx] = clay_dis[idx] - temp[idx]
+    idx = (sand_dis + clay_dis) > 100
+    temp = (sand_dis + clay_dis - 100) / 2
+    sand_dis[idx] = sand_dis[idx] - temp[idx]
+    clay_dis[idx] = clay_dis[idx] - temp[idx]
 
-        idx = sand_dis > 100
-        sand_dis[idx] = sand_dis[idx] - (sand_dis[idx] - 100)
-        clay_dis[idx] = clay_dis[idx] - (sand_dis[idx] - 100)
+    idx = sand_dis > 100
+    sand_dis[idx] = sand_dis[idx] - (sand_dis[idx] - 100)
+    clay_dis[idx] = clay_dis[idx] - (sand_dis[idx] - 100)
 
-        idx = clay_dis > 100
-        sand_dis[idx] = sand_dis[idx] - (clay_dis[idx] - 100)
-        clay_dis[idx] = clay_dis[idx] - (clay_dis[idx] - 100)
+    idx = clay_dis > 100
+    sand_dis[idx] = sand_dis[idx] - (clay_dis[idx] - 100)
+    clay_dis[idx] = clay_dis[idx] - (clay_dis[idx] - 100)
 
-        idx = (sand_dis + clay_dis) < 0
-        temp = (sand_dis + clay_dis) / 2
-        sand_dis[idx] = sand_dis[idx] - temp[idx]
-        clay_dis[idx] = clay_dis[idx] - temp[idx]
+    idx = (sand_dis + clay_dis) < 0
+    temp = (sand_dis + clay_dis) / 2
+    sand_dis[idx] = sand_dis[idx] - temp[idx]
+    clay_dis[idx] = clay_dis[idx] - temp[idx]
 
-        idx = np.logical_and(sand_dis < min_sand, idx_nonzero)
-        sand_dis[idx] = np.minimum(
-            sand_dis[idx] - sand_dis[idx] + min_sand, 100 - min_sand
+    idx = np.logical_and(sand_dis < min_sand, idx_nonzero)
+    sand_dis[idx] = np.minimum(
+        sand_dis[idx] - sand_dis[idx] + min_sand, 100 - min_sand
+    )
+    clay_dis[idx] = clay_dis[idx] - sand_dis[idx] + min_sand
+
+    idx = np.logical_and(clay_dis < min_clay, idx_nonzero)
+    sand_dis[idx] = np.minimum(
+        sand_dis[idx] - clay_dis[idx] + min_clay, 100 - min_clay
+    )
+    clay_dis[idx] = clay_dis[idx] - clay_dis[idx] + min_clay
+
+    om_dis = org + noise_om
+    om_dis[idx_zero] = 0
+    om_dis[org == 0] = 0
+    om_dis[om_dis > 130] = 130
+    om_dis[om_dis < 0] = 0
+
+    with nc.Dataset(sorig) as src, nc.Dataset(sname, "w") as dst:
+        # Copy attributes
+        copy_attr_dim(src, dst)
+
+        # Copy non-perturbed variables:
+        for name, var in src.variables.items():
+            if name != "PCT_SAND" and name != "PCT_CLAY" and name != "ORGANIC":
+                nvar = dst.createVariable(name, var.datatype, var.dimensions)
+                dst[name].setncatts(src[name].__dict__)
+                dst[name][:] = src[name][:]
+        # Add perturbations
+        pct_sand = dst.createVariable(
+            "PCT_SAND",
+            datatype=np.float64,
+            dimensions=(
+                "nlevsoi",
+                "lsmlat",
+                "lsmlon",
+            ),
+            fill_value=1.0e30,
         )
-        clay_dis[idx] = clay_dis[idx] - sand_dis[idx] + min_sand
+        pct_sand.setncatts({"long_name": "percent sand", "units": "unitless"})
 
-        idx = np.logical_and(clay_dis < min_clay, idx_nonzero)
-        sand_dis[idx] = np.minimum(
-            sand_dis[idx] - clay_dis[idx] + min_clay, 100 - min_clay
+        pct_clay = dst.createVariable(
+            "PCT_CLAY",
+            datatype=np.float64,
+            dimensions=(
+                "nlevsoi",
+                "lsmlat",
+                "lsmlon",
+            ),
+            fill_value=1.0e30,
         )
-        clay_dis[idx] = clay_dis[idx] - clay_dis[idx] + min_clay
+        pct_clay.setncatts({"long_name": "percent clay", "units": "unitless"})
 
-        om_dis = org + noise_om
-        om_dis[idx_zero] = 0
-        om_dis[org == 0] = 0
-        om_dis[om_dis > 130] = 130
-        om_dis[om_dis < 0] = 0
+        om = dst.createVariable(
+            "ORGANIC",
+            datatype=np.float64,
+            dimensions=(
+                "nlevsoi",
+                "lsmlat",
+                "lsmlon",
+            ),
+            fill_value=1.0e30,
+        )
+        om.setncatts(
+            {
+                "long_name": "organic matter density at soil levels",
+                "units": "kg/m3 (assumed carbon content 0.58 gC per gOM)",
+            }
+        )
 
-        with nc.Dataset(sorig) as src, nc.Dataset(sname, "w") as dst:
-            # Copy attributes
-            copy_attr_dim(src, dst)
+        dst.variables["PCT_SAND"][:] = sand_dis.reshape(
+            dst.variables["ORGANIC"].shape
+        )
 
-            # Copy non-perturbed variables:
-            for name, var in src.variables.items():
-                if name != "PCT_SAND" and name != "PCT_CLAY" and name != "ORGANIC":
-                    nvar = dst.createVariable(name, var.datatype, var.dimensions)
-                    dst[name].setncatts(src[name].__dict__)
-                    dst[name][:] = src[name][:]
-            # Add perturbations
-            pct_sand = dst.createVariable(
-                "PCT_SAND",
-                datatype=np.float64,
-                dimensions=(
-                    "nlevsoi",
-                    "lsmlat",
-                    "lsmlon",
-                ),
-                fill_value=1.0e30,
-            )
-            pct_sand.setncatts({"long_name": "percent sand", "units": "unitless"})
+        dst.variables["PCT_CLAY"][:] = clay_dis.reshape(
+            dst.variables["ORGANIC"].shape
+        )
 
-            pct_clay = dst.createVariable(
-                "PCT_CLAY",
-                datatype=np.float64,
-                dimensions=(
-                    "nlevsoi",
-                    "lsmlat",
-                    "lsmlon",
-                ),
-                fill_value=1.0e30,
-            )
-            pct_clay.setncatts({"long_name": "percent clay", "units": "unitless"})
-
-            om = dst.createVariable(
-                "ORGANIC",
-                datatype=np.float64,
-                dimensions=(
-                    "nlevsoi",
-                    "lsmlat",
-                    "lsmlon",
-                ),
-                fill_value=1.0e30,
-            )
-            om.setncatts(
-                {
-                    "long_name": "organic matter density at soil levels",
-                    "units": "kg/m3 (assumed carbon content 0.58 gC per gOM)",
-                }
-            )
-
-            dst.variables["PCT_SAND"][:] = sand_dis.reshape(
-                dst.variables["ORGANIC"].shape
-            )
-
-            dst.variables["PCT_CLAY"][:] = clay_dis.reshape(
-                dst.variables["ORGANIC"].shape
-            )
-
-            dst.variables["ORGANIC"][:] = om_dis.reshape(dst.variables["ORGANIC"].shape)
+        dst.variables["ORGANIC"][:] = om_dis.reshape(dst.variables["ORGANIC"].shape)
 
 
 def soil_parameters(
