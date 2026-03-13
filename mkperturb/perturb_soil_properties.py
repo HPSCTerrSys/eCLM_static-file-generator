@@ -47,7 +47,7 @@ def copy_attr_dim(src, dst):
     for name, dimension in src.dimensions.items():
         dst.createDimension(name, len(dimension))
     # Additional attribute
-    dst.setncattr("perturbed_by", "Y.Ewerdwalbesloh")
+    dst.setncattr("perturbed_by", os.getenv("USER", "unknown"))
     dst.setncattr("perturbed_on_date",
                   datetime.datetime.today().strftime("%d.%m.%y"))
 
