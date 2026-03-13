@@ -207,98 +207,6 @@ def SoilParameters(input_file, output_dir, iensemble=0):
         pct_sand = src["PCT_SAND"][:]
         pct_clay = src["PCT_CLAY"][:]
 
-        # noise_om   = 10-20*np.random.rand(1)
-
-        # perturbed_om = organic + noise_om
-        # perturbed_om[perturbed_om>130] = 130
-        # perturbed_om[organic==0] = 0
-        # perturbed_om[perturbed_om<0] = 0
-
-        # #rnd_type_cell = np.random.uniform(low=0.9, high=1.1)
-
-        # #perturbed_om = organic * rnd_type_cell
-        # #perturbed_om[perturbed_om > 130] = 130
-        # #perturbed_om[perturbed_om < 0] = 0
-        # #perturbed_om[organic == 0] = 0
-
-        # # Copy non-perturbed variables:
-        # for name, var in src.variables.items():
-        #     if name != "ORGANIC":
-        #         nvar = dst.createVariable(name, var.datatype, var.dimensions)
-        #         dst[name].setncatts(src[name].__dict__)
-        #         dst[name][:] = src[name][:]
-
-        # om = dst.createVariable("ORGANIC",
-        #                         datatype=np.float64,
-        #                         dimensions=("nlevsoi", "lsmlat", "lsmlon",),
-        #                         fill_value=1.e+30)
-        # om.setncatts({'long_name': u"organic matter density at soil levels",
-        #               'units': u"kg/m3 (assumed carbon content 0.58 gC per gOM)"})
-        # dst.variables["ORGANIC"][:] = perturbed_om
-        # #dst.variables["ORGANIC"][:] = organic
-
-        # # Saturated soil matric potential
-
-        # psis_sat = dst.createVariable("PSIS_SAT",
-        #                             datatype=np.float64,
-        #                             dimensions=("nlevsoi", "lsmlat", "lsmlon",),
-        #                             fill_value=1.e+3)
-        # psis_sat.setncatts({'long_name': u"Sat. soil matric potential",
-        #                         'units': u"mmH20"})
-
-        # sucsat                       = 1.88-0.0131*pct_sand
-        # sucsat_std                   = (0.72 - 0.0026 * (100-pct_sand-pct_clay) + 0.0012*pct_clay)/10
-        # random_value                 = np.random.normal(loc=0.0, scale=1)
-        # noise_sucsat                 = sucsat_std * random_value
-        # perturbed_log_sucsat         = 10*(10**(sucsat+noise_sucsat))
-        # back_transformed_sucsat      = np.clip(perturbed_log_sucsat,0,1000)
-        # dst.variables["PSIS_SAT"][:] = back_transformed_sucsat
-
-        # # Porosity
-        # thetas = dst.createVariable("THETAS",
-        #                             datatype=np.float64,
-        #                             dimensions=("nlevsoi", "lsmlat", "lsmlon",),
-        #                             fill_value=1.e+30)
-        # thetas.setncatts({'long_name': u"Porosity",
-        #                         'units': u"vol/vol"})
-        # watsat                     = 0.489 - 0.00126*pct_sand
-        # watsat_std                 = ((7.73-0.073*pct_clay) / 100.0)/10
-        # random_value               = np.random.normal(loc=0.0, scale=1)
-        # noise_watsat               = watsat_std * random_value
-        # # organic matter perturbation has a higher impact, no organic matter in deeper soil layers --> spread in deeper soil layers smaller than in
-        # # upper soil layers, we make the perturbation of watsat in deepest soil layer larger
-        # perturbed_watsat           = watsat + noise_watsat
-        # dst.variables["THETAS"][:] = perturbed_watsat
-
-        # # Shape (b) parameter
-        # shape_param = dst.createVariable("SHAPE_PARAM",
-        #                             datatype=np.float64,
-        #                             dimensions=("nlevsoi", "lsmlat", "lsmlon",),
-        #                             fill_value=1.e+30)
-        # shape_param.setncatts({'long_name': u"Shape (b) parameter",
-        #                         'units': u"unitless"})
-        # bsw                              = 2.91 + 0.159*pct_clay
-        # bsw_std                          = (0.0500 * pct_clay + 1.34)/10
-        # random_value                     = np.random.normal(loc=0.0, scale=1)
-        # noise_bsw                        = bsw_std * random_value
-        # #noise_bsw[-2:,:,:]               = noise_bsw[-2:,:,:]*1.5
-        # perturbed_bsw                    = bsw + noise_bsw
-        # perturbed_bsw[perturbed_bsw < 0] = 0
-        # dst.variables["SHAPE_PARAM"][:]  = perturbed_bsw
-
-        # # Saturated hydraulic conductivity
-        # ks = dst.createVariable("KSAT",
-        #                         datatype=np.float64,
-        #                         dimensions=("nlevsoi", "lsmlat", "lsmlon",),
-        #                         fill_value=1.e+30)
-        # ks.setncatts({'long_name': u"Sat. hydraulic conductivity", 'units': u"mm/s"})
-        # xksat                    = -0.884+0.0153*pct_sand
-        # xksat_std                = (0.459 + 0.00321*(100-(pct_sand+pct_clay)))
-        # random_value             = np.random.normal(loc=0.0, scale=1)
-        # noise_xksat              = xksat_std * random_value
-        # perturbed_log_xksat      = 0.0070566*(10**(xksat+noise_xksat))
-        # dst.variables["KSAT"][:] = perturbed_log_xksat
-
         # Copy non-perturbed variables:
         for name, var in src.variables.items():
             nvar = dst.createVariable(name, var.datatype, var.dimensions)
@@ -503,13 +411,24 @@ def main():
     parser.add_argument("output_dir", help="Directory for the perturbed ensemble output files.")
     parser.add_argument("--start", type=int, default=0, help="First ensemble member index (0-based, default: 0).")
     parser.add_argument("--count", type=int, default=50, help="Number of ensemble members to generate (default: 50).")
+    parser.add_argument(
+        "--mode",
+        choices=["hydraulic", "texture"],
+        default="hydraulic",
+        help="Perturbation mode: 'hydraulic' perturbs soil hydraulic properties directly "
+             "(default), 'texture' perturbs sand/clay/OM fractions.",
+    )
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
 
     for i in range(args.start, args.start + args.count):
-        SoilParameters(args.input_file, args.output_dir, i)
-        print(f"Done with ensemble member {i + 1}")
+        if args.mode == "hydraulic":
+            SoilParameters(args.input_file, args.output_dir, i)
+            print(f"Done with ensemble member {i + 1}")
+        else:
+            disturbSandClay(args.input_file, args.output_dir, args.count)
+            break
 
 
 if __name__ == "__main__":
