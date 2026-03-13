@@ -52,7 +52,7 @@ def copy_attr_dim(src, dst):
                   datetime.datetime.today().strftime("%d.%m.%y"))
 
 
-def disturb_sand_clay(input_file, output_dir, iensemble=0):  # Yorck code
+def disturb_sand_clay(input_file, output_dir, iensemble=0, noise_range=10):  # Yorck code
     sorig = input_file
     ncid = nc.Dataset(sorig, "r")
     # Get the variables
@@ -68,10 +68,10 @@ def disturb_sand_clay(input_file, output_dir, iensemble=0):  # Yorck code
     min_sand = np.min(sand[idx_nonzero])
     min_clay = np.min(clay[idx_nonzero])
 
-    # Generate spatially uniform distributed noise, +-10%
-    noise_sand = 10 - 20 * np.random.rand(1)
-    noise_clay = 10 - 20 * np.random.rand(1)
-    noise_om = 10 - 20 * np.random.rand(1)
+    # Generate spatially uniform distributed noise
+    noise_sand = noise_range - 2 * noise_range * np.random.rand(1)
+    noise_clay = noise_range - 2 * noise_range * np.random.rand(1)
+    noise_om = noise_range - 2 * noise_range * np.random.rand(1)
 
     stem = os.path.splitext(os.path.basename(sorig))[0]
     sname = os.path.join(output_dir, f"{stem}_{str(iensemble + 1).zfill(5)}.nc")
@@ -180,7 +180,17 @@ def disturb_sand_clay(input_file, output_dir, iensemble=0):  # Yorck code
             dst.variables["ORGANIC"][:] = om_dis.reshape(dst.variables["ORGANIC"].shape)
 
 
-def soil_parameters(input_file, output_dir, iensemble=0):
+def soil_parameters(
+    input_file,
+    output_dir,
+    iensemble=0,
+    std_sucsat=0.2,
+    std_watsat=0.05,
+    std_bsw=0.1,
+    std_hksat=0.1,
+    max_watsat=0.93,
+    hksat_clip=(0.5, 2.0),
+):
 
     sorig = input_file
     stem = os.path.splitext(os.path.basename(sorig))[0]
@@ -264,18 +274,10 @@ def soil_parameters(input_file, output_dir, iensemble=0):
         ks.setncatts({"long_name": "Sat. hydraulic conductivity", "units": "mm/s"})
 
         # sample one random value per vairable per ensemble member with standard deviations that are chosen pretty randomly based on what rovides the best spread
-        random_value_sucsat = np.random.normal(
-            loc=1, scale=0.2
-        )  # , size=(pct_sand.shape[1],pct_sand.shape[2]))
-        random_value_watsat = np.random.normal(
-            loc=1, scale=0.05
-        )  # , size=random_value_sucsat.shape)
-        random_value_bsw = np.random.normal(
-            loc=1, scale=0.1
-        )  # , size=random_value_sucsat.shape)
-        random_value_hksat = np.random.normal(
-            loc=1, scale=0.1
-        )  # , size=random_value_sucsat.shape) scale=0.25
+        random_value_sucsat = np.random.normal(loc=1, scale=std_sucsat)
+        random_value_watsat = np.random.normal(loc=1, scale=std_watsat)
+        random_value_bsw = np.random.normal(loc=1, scale=std_bsw)
+        random_value_hksat = np.random.normal(loc=1, scale=std_hksat)
 
         # first, compute depth at which sand and clay are taken for one layer, based on CLM source code
 
@@ -390,14 +392,14 @@ def soil_parameters(input_file, output_dir, iensemble=0):
             dst.variables["PSIS_SAT_adj"][j, :, :] = sucsat * random_value_sucsat
 
             dst.variables["THETAS_adj"][j, :, :] = np.clip(
-                watsat * random_value_watsat, 0, 0.93
+                watsat * random_value_watsat, 0, max_watsat
             )
 
             dst.variables["SHAPE_PARAM_adj"][j, :, :] = bsw * random_value_bsw
 
             dst.variables["KSAT_adj"][j, :, :] = hksat * np.clip(
-                random_value_hksat, 0.5, 2
-            )  # clip bounds: 0.1, 10
+                random_value_hksat, hksat_clip[0], hksat_clip[1]
+            )
 
 
 def main():
@@ -415,6 +417,15 @@ def main():
         help="Perturbation mode: 'hydraulic' perturbs soil hydraulic properties directly "
              "(default), 'texture' perturbs sand/clay/OM fractions.",
     )
+    # Perturbation parameters — hydraulic mode
+    parser.add_argument("--std-sucsat", type=float, default=0.2, help="Std dev of multiplicative noise for saturated matric potential (default: 0.2).")
+    parser.add_argument("--std-watsat", type=float, default=0.05, help="Std dev of multiplicative noise for porosity (default: 0.05).")
+    parser.add_argument("--std-bsw", type=float, default=0.1, help="Std dev of multiplicative noise for shape (b) parameter (default: 0.1).")
+    parser.add_argument("--std-hksat", type=float, default=0.1, help="Std dev of multiplicative noise for saturated hydraulic conductivity (default: 0.1).")
+    parser.add_argument("--max-watsat", type=float, default=0.93, help="Upper clip for perturbed porosity (default: 0.93).")
+    parser.add_argument("--hksat-clip", type=float, nargs=2, default=[0.5, 2.0], metavar=("MIN", "MAX"), help="Clip bounds for the Ksat multiplicative factor (default: 0.5 2.0).")
+    # Perturbation parameters — texture mode
+    parser.add_argument("--noise-range", type=float, default=10.0, help="Half-range of uniform noise for sand/clay/OM perturbation in percentage points (default: 10).")
     parser.add_argument(
         "--seed",
         type=int,
@@ -445,9 +456,17 @@ def main():
 
     for i in range(args.start, args.start + args.count):
         if args.mode == "hydraulic":
-            soil_parameters(args.input_file, args.output_dir, i)
+            soil_parameters(
+                args.input_file, args.output_dir, i,
+                std_sucsat=args.std_sucsat,
+                std_watsat=args.std_watsat,
+                std_bsw=args.std_bsw,
+                std_hksat=args.std_hksat,
+                max_watsat=args.max_watsat,
+                hksat_clip=args.hksat_clip,
+            )
         else:
-            disturb_sand_clay(args.input_file, args.output_dir, i)
+            disturb_sand_clay(args.input_file, args.output_dir, i, noise_range=args.noise_range)
         print(f"Done with ensemble member {i + 1}")
 
     if args.state_file:
