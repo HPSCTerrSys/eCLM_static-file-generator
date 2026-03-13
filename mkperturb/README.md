@@ -33,7 +33,7 @@ python perturb_soil_properties.py <input_file> <output_dir> [options]
 | `--mode {hydraulic,texture}` | `hydraulic` | Perturbation mode (see below)                         |
 | `--start N`                  | `0`         | First ensemble member index (0-based)                 |
 | `--count N`                  | `50`        | Number of ensemble members to generate                |
-| `--seed N`                   | *(auto)*    | RNG seed; if omitted, one is generated and printed    |
+| `--seed N`                   | `42`        | RNG seed                                              |
 | `--state-file FILE`          | *(none)*    | JSON file to save/restore RNG state for resuming runs |
 
 ### Perturbation parameters — hydraulic mode
@@ -82,9 +82,9 @@ sand + clay ≤ 100 %) are enforced after perturbation.
 
 ## Reproducibility
 
-If `--seed` is not provided, a random seed is generated and printed to
-stdout so any run can be reproduced exactly by passing that
-seed. Alternatively, `--state-file` saves the full NumPy RNG state
+The default seed is `42`, making all runs reproducible out of the box.
+Pass a different `--seed` to generate a distinct ensemble.
+Alternatively, `--state-file` saves the full NumPy RNG state
 after the run and restores it at the start, which also enables
 resuming an interrupted run:
 
@@ -102,8 +102,8 @@ python perturb_soil_properties.py surfdata.nc ./ensemble --start 50 --count 150 
 # 50-member hydraulic ensemble with default settings
 python perturb_soil_properties.py surfdata.nc ./ensemble/
 
-# Reproducible run with a fixed seed
-python perturb_soil_properties.py surfdata.nc ./ensemble/ --seed 42
+# Run with a different seed to generate a distinct ensemble
+python perturb_soil_properties.py surfdata.nc ./ensemble/ --seed 123
 
 # Texture perturbation, 100 members, ±5 % noise
 python perturb_soil_properties.py surfdata.nc ./ensemble/ --mode texture --count 100 --noise-range 5

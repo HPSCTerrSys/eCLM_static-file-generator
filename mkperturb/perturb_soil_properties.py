@@ -21,7 +21,7 @@ Each call to the main perturbation functions generates one ensemble member and
 writes it to a NetCDF file named after the input file with a zero-padded member
 index appended (e.g. surfdata_..._00001.nc).
 
-Reproducibility is supported via an explicit --seed argument or by
+Reproducibility is supported via --seed (default: 42) or by
 saving/restoring the NumPy random state to/from a JSON file (--state-file).
 
 Original author: Yorck Ewerdwalbesloh
@@ -556,8 +556,8 @@ def main():
     parser.add_argument(
         "--seed",
         type=int,
-        default=None,
-        help="Seed for the random number generator. If omitted, a random seed is used and printed.",
+        default=42,
+        help="Seed for the random number generator (default: 42).",
     )
     parser.add_argument(
         "--state-file",
@@ -575,9 +575,8 @@ def main():
         rnd_state_deserialize(args.state_file)
         print(f"Restored random state from '{args.state_file}'.")
     else:
-        seed = args.seed if args.seed is not None else int(np.random.randint(0, 2**31))
-        np.random.seed(seed)
-        print(f"Random seed: {seed}")
+        np.random.seed(args.seed)
+        print(f"Random seed: {args.seed}")
 
     os.makedirs(args.output_dir, exist_ok=True)
 
