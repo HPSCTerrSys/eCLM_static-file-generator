@@ -23,7 +23,7 @@ python perturb_soil_properties.py <input_file> <output_dir> [options]
 
 | Argument     | Description                                               |
 |--------------|-----------------------------------------------------------|
-| `input_file` | Source eCLM surface NetCDF file                           |
+| `input_file` | Source eCLM surface file (NetCDF)                         |
 | `output_dir` | Directory for output files (created if it does not exist) |
 
 ### General options
