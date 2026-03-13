@@ -16,7 +16,7 @@ import numpy as np
 # Helper function to serialize / deserialize random state with json
 
 
-def rnd_state_serialize():
+def rnd_state_serialize(state_file):
     tmp_state = np.random.get_state()
     save_state = ()
     for i in tmp_state:
@@ -24,11 +24,11 @@ def rnd_state_serialize():
             save_state = save_state + (i.tolist(),)
         else:
             save_state = save_state + (i,)
-    json.dump(save_state, open("rnd_state.json", "w"))
+    json.dump(save_state, open(state_file, "w"))
 
 
-def rnd_state_deserialize():
-    tmp_state = json.load(open("rnd_state.json", "r"))
+def rnd_state_deserialize(state_file):
+    tmp_state = json.load(open(state_file, "r"))
     load_state = ()
     for i in tmp_state:
         if type(i) is list:
@@ -415,7 +415,31 @@ def main():
         help="Perturbation mode: 'hydraulic' perturbs soil hydraulic properties directly "
              "(default), 'texture' perturbs sand/clay/OM fractions.",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Seed for the random number generator. If omitted, a random seed is used and printed.",
+    )
+    parser.add_argument(
+        "--state-file",
+        default=None,
+        help="Path to a JSON file for saving/restoring the random state. "
+             "If the file exists, the state is restored from it (resuming a previous run) "
+             "and --seed is ignored. After the run, the state is saved to this file.",
+    )
     args = parser.parse_args()
+
+    # Initialise random state
+    if args.state_file and os.path.isfile(args.state_file):
+        if args.seed is not None:
+            print(f"Warning: --state-file '{args.state_file}' exists; ignoring --seed.")
+        rnd_state_deserialize(args.state_file)
+        print(f"Restored random state from '{args.state_file}'.")
+    else:
+        seed = args.seed if args.seed is not None else int(np.random.randint(0, 2**31))
+        np.random.seed(seed)
+        print(f"Random seed: {seed}")
 
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -425,6 +449,10 @@ def main():
         else:
             disturb_sand_clay(args.input_file, args.output_dir, i)
         print(f"Done with ensemble member {i + 1}")
+
+    if args.state_file:
+        rnd_state_serialize(args.state_file)
+        print(f"Saved random state to '{args.state_file}'.")
 
 
 if __name__ == "__main__":
