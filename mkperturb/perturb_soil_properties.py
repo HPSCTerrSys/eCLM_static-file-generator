@@ -1,21 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import numpy as np
-import netCDF4 as nc
-
-# import matplotlib.pyplot as plt
-# import pandas as pd
-# import seaborn as sns
-# import os
-import json
+import argparse
 import datetime
+import json
+import os
 
-# from pandas.plotting import scatter_matrix
-# import pdb
-
-
-num_ensemble = 50
+import netCDF4 as nc
+import numpy as np
 
 
 # Helper functions
@@ -60,13 +52,8 @@ def copy_attr_dim(src, dst):
                   datetime.datetime.today().strftime("%d.%m.%y"))
 
 
-def disturbSandClay(num_ensemble=64):  # Yorck code
-    sorig = (
-        "/p/project1/detectc01/clm_inputfiles/eCLM/surface/"
-        + "surface_file_no_irrigation_LC_corrected/"
-        + "surfdata_EUR-11_hist_16pfts_Irrig_CMIP6_simyr2000_c230808_GLC2000"
-        + ".nc"
-    )
+def disturbSandClay(input_file, output_dir, num_ensemble=64):  # Yorck code
+    sorig = input_file
     ncid = nc.Dataset(sorig, "r")
     # Get the variables
     sand = ncid.variables["PCT_SAND"][:]
@@ -88,15 +75,9 @@ def disturbSandClay(num_ensemble=64):  # Yorck code
     noise_clay = 10 - 20 * np.random.rand(num_ensemble, 1)
     noise_om = 10 - 20 * np.random.rand(num_ensemble, 1)
 
+    stem = os.path.splitext(os.path.basename(sorig))[0]
     for i in range(num_ensemble):
-        sname = (
-            "/p/project/detectc01/clm_inputfiles/eCLM/"
-            + "surface/ensemble_texture/"
-            + "surfdata_"
-            + "EUR-11_hist_16pfts_Irrig_CMIP6_simyr2000_c230808_GLC2000_"
-            + str(i + 1).zfill(5)
-            + ".nc"
-        )
+        sname = os.path.join(output_dir, f"{stem}_{str(i + 1).zfill(5)}.nc")
 
         sand_dis = sand + noise_sand[i]
         clay_dis = clay + noise_clay[i]
@@ -202,15 +183,11 @@ def disturbSandClay(num_ensemble=64):  # Yorck code
             dst.variables["ORGANIC"][:] = om_dis.reshape(dst.variables["ORGANIC"].shape)
 
 
-def SoilParameters(iensemble=0):
+def SoilParameters(input_file, output_dir, iensemble=0):
 
-    sname = (
-        "/p/project1/detectc01/clm_inputfiles/eCLM/surface/ensemble_test/"
-        + "surfdata_EUR-11_hist_16pfts_Irrig_CMIP6_simyr2000_c230808_GLC2000_"
-        + str(iensemble + 1).zfill(5)
-        + ".nc"
-    )
-    sorig = "/p/project1/detectc01/clm_inputfiles/eCLM/surface/surface_file_no_irrigation_LC_corrected/surfdata_EUR-11_hist_16pfts_Irrig_CMIP6_simyr2000_c230808_GLC2000.nc"
+    sorig = input_file
+    stem = os.path.splitext(os.path.basename(sorig))[0]
+    sname = os.path.join(output_dir, f"{stem}_{str(iensemble + 1).zfill(5)}.nc")
 
     with nc.Dataset(sorig) as src, nc.Dataset(sname, "w") as dst:
 
@@ -518,17 +495,22 @@ def SoilParameters(iensemble=0):
             )  # clip bounds: 0.1, 10
 
 
-# Settings / parameters
-# plotting = False
-rnd_state_file = "rnd_state.json"
-force_seed = False
-# Either seed random number generator or continue with existing state
-# if not os.path.isfile(rnd_state_file) or force_seed:
-#    np.random.seed(42)
-# else:
-#    rnd_state_deserialize()
+def main():
+    parser = argparse.ArgumentParser(
+        description="Perturb soil hydraulic properties in an eCLM surface file."
+    )
+    parser.add_argument("input_file", help="Path to the source surface NetCDF file.")
+    parser.add_argument("output_dir", help="Directory for the perturbed ensemble output files.")
+    parser.add_argument("--start", type=int, default=0, help="First ensemble member index (0-based, default: 0).")
+    parser.add_argument("--count", type=int, default=50, help="Number of ensemble members to generate (default: 50).")
+    args = parser.parse_args()
 
-# disturbSandClay(num_ensemble)
-for i in range(50, 200):
-    SoilParameters(i)
-    print("Done with ensemble member " + str(i + 1))
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    for i in range(args.start, args.start + args.count):
+        SoilParameters(args.input_file, args.output_dir, i)
+        print(f"Done with ensemble member {i + 1}")
+
+
+if __name__ == "__main__":
+    main()
