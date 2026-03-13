@@ -52,7 +52,7 @@ def copy_attr_dim(src, dst):
                   datetime.datetime.today().strftime("%d.%m.%y"))
 
 
-def disturbSandClay(input_file, output_dir, num_ensemble=64):  # Yorck code
+def disturbSandClay(input_file, output_dir, iensemble=0):  # Yorck code
     sorig = input_file
     ncid = nc.Dataset(sorig, "r")
     # Get the variables
@@ -66,21 +66,18 @@ def disturbSandClay(input_file, output_dir, num_ensemble=64):  # Yorck code
     idx_zero = sand == 0
     idx_nonzero = sand != 0
     min_sand = np.min(sand[idx_nonzero])
-    max_sand = np.max(sand[idx_nonzero])
     min_clay = np.min(clay[idx_nonzero])
-    max_clay = np.max(clay[idx_nonzero])
 
     # Generate spatially uniform distributed noise, +-10%
-    noise_sand = 10 - 20 * np.random.rand(num_ensemble, 1)
-    noise_clay = 10 - 20 * np.random.rand(num_ensemble, 1)
-    noise_om = 10 - 20 * np.random.rand(num_ensemble, 1)
+    noise_sand = 10 - 20 * np.random.rand(1)
+    noise_clay = 10 - 20 * np.random.rand(1)
+    noise_om = 10 - 20 * np.random.rand(1)
 
     stem = os.path.splitext(os.path.basename(sorig))[0]
-    for i in range(num_ensemble):
-        sname = os.path.join(output_dir, f"{stem}_{str(i + 1).zfill(5)}.nc")
+    sname = os.path.join(output_dir, f"{stem}_{str(iensemble + 1).zfill(5)}.nc")
 
-        sand_dis = sand + noise_sand[i]
-        clay_dis = clay + noise_clay[i]
+    sand_dis = sand + noise_sand
+    clay_dis = clay + noise_clay
         sand_dis[idx_zero] = 0
         clay_dis[idx_zero] = 0
 
@@ -114,7 +111,7 @@ def disturbSandClay(input_file, output_dir, num_ensemble=64):  # Yorck code
         )
         clay_dis[idx] = clay_dis[idx] - clay_dis[idx] + min_clay
 
-        om_dis = org + noise_om[i]
+        om_dis = org + noise_om
         om_dis[idx_zero] = 0
         om_dis[org == 0] = 0
         om_dis[om_dis > 130] = 130
@@ -425,10 +422,9 @@ def main():
     for i in range(args.start, args.start + args.count):
         if args.mode == "hydraulic":
             SoilParameters(args.input_file, args.output_dir, i)
-            print(f"Done with ensemble member {i + 1}")
         else:
-            disturbSandClay(args.input_file, args.output_dir, args.count)
-            break
+            disturbSandClay(args.input_file, args.output_dir, i)
+        print(f"Done with ensemble member {i + 1}")
 
 
 if __name__ == "__main__":
