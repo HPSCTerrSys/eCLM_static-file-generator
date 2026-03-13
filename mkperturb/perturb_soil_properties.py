@@ -265,6 +265,7 @@ def soil_parameters(
     max_watsat=0.93,
     hksat_clip=(0.5, 2.0),
     n_perturb_levels=25,
+    adj=True,
 ):
     """Perturb soil hydraulic properties directly using CLM pedotransfer functions.
 
@@ -315,6 +316,14 @@ def soil_parameters(
         Number of levels (counting from the surface) to which the random
         perturbation is applied. Deeper levels receive the unperturbed CLM
         mean values. Must be <= nlevgrnd (25). Default: 25 (all levels).
+    adj : bool, optional
+        If True (default), write parameters with the ``_adj`` suffix
+        (PSIS_SAT_adj, THETAS_adj, SHAPE_PARAM_adj, KSAT_adj). These apply
+        to all nlevgrnd layers and overwrite eCLM's organic matter mixing
+        when ``soil_hyd_inparm_from_file_adj = .true.`` is set in lnd_in.
+        If False, write without suffix (PSIS_SAT, THETAS, SHAPE_PARAM,
+        KSAT). These apply to the first nlevsoifl=10 layers and undergo
+        organic matter mixing when ``soil_hyd_inparm_from_file = .true.``.
     """
     sorig = input_file
     stem = os.path.splitext(os.path.basename(sorig))[0]
@@ -332,6 +341,7 @@ def soil_parameters(
         dim_types = 3
 
         # perturb organic matter
+        suffix = "_adj" if adj else ""
 
         organic = src["ORGANIC"][:]
         pct_sand = src["PCT_SAND"][:]
@@ -345,7 +355,7 @@ def soil_parameters(
 
         # initialize variables in nc file
         psis_sat = dst.createVariable(
-            "PSIS_SAT_adj",
+            f"PSIS_SAT{suffix}",
             datatype=np.float64,
             dimensions=(
                 "nlevgrnd",
@@ -359,20 +369,16 @@ def soil_parameters(
         )
 
         thetas = dst.createVariable(
-            "THETAS_adj",
+            f"THETAS{suffix}",
             datatype=np.float64,
-            dimensions=(
-                "nlevgrnd",
-                "lsmlat",
-                "lsmlon",
-            ),
+            dimensions=("nlevgrnd", "lsmlat", "lsmlon"),
             fill_value=1.0e30,
         )
         thetas.setncatts({"long_name": "Porosity", "units": "vol/vol"})
 
         # Shape (b) parameter
         shape_param = dst.createVariable(
-            "SHAPE_PARAM_adj",
+            f"SHAPE_PARAM{suffix}",
             datatype=np.float64,
             dimensions=(
                 "nlevgrnd",
@@ -385,7 +391,7 @@ def soil_parameters(
 
         # Saturated hydraulic conductivity
         ks = dst.createVariable(
-            "KSAT_adj",
+            f"KSAT{suffix}",
             datatype=np.float64,
             dimensions=(
                 "nlevgrnd",
@@ -512,19 +518,19 @@ def soil_parameters(
 
             # perturb adjusted parameters and write them in the surface files
             if j < n_perturb_levels:
-                dst.variables["PSIS_SAT_adj"][j, :, :] = sucsat * random_value_sucsat
-                dst.variables["THETAS_adj"][j, :, :] = np.clip(
+                dst.variables[f"PSIS_SAT{suffix}"][j, :, :] = sucsat * random_value_sucsat
+                dst.variables[f"THETAS{suffix}"][j, :, :] = np.clip(
                     watsat * random_value_watsat, 0, max_watsat
                 )
-                dst.variables["SHAPE_PARAM_adj"][j, :, :] = bsw * random_value_bsw
-                dst.variables["KSAT_adj"][j, :, :] = hksat * np.clip(
+                dst.variables[f"SHAPE_PARAM{suffix}"][j, :, :] = bsw * random_value_bsw
+                dst.variables[f"KSAT{suffix}"][j, :, :] = hksat * np.clip(
                     random_value_hksat, hksat_clip[0], hksat_clip[1]
                 )
             else:
-                dst.variables["PSIS_SAT_adj"][j, :, :] = sucsat
-                dst.variables["THETAS_adj"][j, :, :] = np.clip(watsat, 0, max_watsat)
-                dst.variables["SHAPE_PARAM_adj"][j, :, :] = bsw
-                dst.variables["KSAT_adj"][j, :, :] = hksat
+                dst.variables[f"PSIS_SAT{suffix}"][j, :, :] = sucsat
+                dst.variables[f"THETAS{suffix}"][j, :, :] = np.clip(watsat, 0, max_watsat)
+                dst.variables[f"SHAPE_PARAM{suffix}"][j, :, :] = bsw
+                dst.variables[f"KSAT{suffix}"][j, :, :] = hksat
 
 
 def main():
@@ -551,6 +557,15 @@ def main():
     parser.add_argument("--max-watsat", type=float, default=0.93, help="Upper clip for perturbed porosity (default: 0.93).")
     parser.add_argument("--hksat-clip", type=float, nargs=2, default=[0.5, 2.0], metavar=("MIN", "MAX"), help="Clip bounds for the Ksat multiplicative factor (default: 0.5 2.0).")
     parser.add_argument("--n-perturb-levels", type=int, default=25, help="Number of levels from the surface to which the perturbation is applied; deeper levels receive unperturbed CLM mean values (default: 25, i.e. all levels).")
+    parser.add_argument(
+        "--no-adj",
+        action="store_true",
+        default=False,
+        help="Write hydraulic parameters without the _adj suffix (PSIS_SAT, THETAS, "
+             "SHAPE_PARAM, KSAT). Use with soil_hyd_inparm_from_file = .true. in lnd_in; "
+             "parameters apply to the first nlevsoifl=10 layers and undergo OM mixing. "
+             "Default: write with _adj suffix, for use with soil_hyd_inparm_from_file_adj = .true.",
+    )
     # Perturbation parameters — texture mode
     parser.add_argument("--noise-range", type=float, default=10.0, help="Half-range of uniform noise for sand/clay/OM perturbation in percentage points (default: 10).")
     parser.add_argument(
@@ -591,6 +606,7 @@ def main():
                 max_watsat=args.max_watsat,
                 hksat_clip=args.hksat_clip,
                 n_perturb_levels=args.n_perturb_levels,
+                adj=not args.no_adj,
             )
         else:
             disturb_sand_clay(args.input_file, args.output_dir, i, noise_range=args.noise_range)

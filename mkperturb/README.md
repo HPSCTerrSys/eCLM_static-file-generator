@@ -49,6 +49,7 @@ Each hydraulic property is multiplied by a scalar drawn from N(1, std).
 | `--max-watsat`         | `0.93`    | Upper clip for perturbed porosity                          |
 | `--hksat-clip MIN MAX` | `0.5 2.0` | Clip bounds for the Ksat multiplicative factor             |
 | `--n-perturb-levels N` | `25`      | Number of levels from the surface to perturb; deeper levels receive unperturbed CLM mean values |
+| `--no-adj`             | *(off)*   | Write parameters without `_adj` suffix (see below)                                             |
 
 ### Perturbation parameters — texture mode
 
@@ -72,6 +73,16 @@ The perturbation is applied only to the uppermost `--n-perturb-levels`
 levels (default: all 25). Deeper levels receive the unperturbed CLM
 mean values, ensuring all levels always contain physically consistent
 data.
+
+By default, parameters are written with the `_adj` suffix (`PSIS_SAT_adj`,
+`THETAS_adj`, `SHAPE_PARAM_adj`, `KSAT_adj`), corresponding to
+`soil_hyd_inparm_from_file_adj = .true.` in the eCLM namelist. These
+apply to all `nlevgrnd` layers and overwrite organic matter mixing.
+
+With `--no-adj`, parameters are written without the suffix (`PSIS_SAT`,
+`THETAS`, `SHAPE_PARAM`, `KSAT`), corresponding to
+`soil_hyd_inparm_from_file = .true.`. These apply to the first
+`nlevsoifl=10` layers and undergo organic matter mixing in eCLM.
 
 ### `texture`
 
@@ -113,4 +124,7 @@ python perturb_soil_properties.py surfdata.nc ./ensemble/ --std-hksat 0.25 --hks
 
 # Perturb only the top 10 levels; deeper levels get unperturbed mean values
 python perturb_soil_properties.py surfdata.nc ./ensemble/ --n-perturb-levels 10
+
+# Write without _adj suffix (for use with soil_hyd_inparm_from_file = .true.)
+python perturb_soil_properties.py surfdata.nc ./ensemble/ --no-adj
 ```
