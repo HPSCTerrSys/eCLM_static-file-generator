@@ -136,7 +136,7 @@ case "$GRID_TYPE" in
             PTNAME="$GRIDNAME" S_LAT="$S_LAT" N_LAT="$N_LAT" E_LON="$E_LON" W_LON="$W_LON" \
             NX="$NX" NY="$NY" IMASK="$IMASK" PRINT="TRUE" \
             python mkscripgrid.py
-r        )
+        )
         ;;
     curv)
         echo "Curvilinear grid from: $GRIDFILE"
