@@ -135,7 +135,7 @@ case "$GRID_TYPE" in
             cd "$BASEDIR/mkmapgrids"
             PTNAME="$GRIDNAME" S_LAT="$S_LAT" N_LAT="$N_LAT" E_LON="$E_LON" W_LON="$W_LON" \
             NX="$NX" NY="$NY" IMASK="$IMASK" PRINT="TRUE" \
-            python mkscripgrid.py
+            python3 mkscripgrid.py
         )
         ;;
     curv)
@@ -155,7 +155,7 @@ case "$GRID_TYPE" in
         echo "Icosahedral grid from: $GRIDFILE"
         (
             cd "$BASEDIR/mkmapgrids"
-            python mkscrip_icos.py \
+            python3 mkscrip_icos.py \
                 --ifile "$GRIDFILE" \
                 --ofile "$SCRIP_OUTPATH" \
                 --overwrite
@@ -175,7 +175,7 @@ echo "Step 1 complete: $SCRIP_OUTPATH"
 echo ""
 echo "=== Step 2: Creating mapping files (SLURM job) ==="
 
-TMPSCRIPT="$(mktemp "$BASEDIR/mkmapdata/runscript_mkmapdata_tmp_XXXX.sh")"
+TMPSCRIPT="$(mktemp "$BASEDIR/mkmapdata/runscript_mkmapdata_tmp_XXXXXX.sh")"
 sed -e "s|^export GRIDNAME=.*|export GRIDNAME=\"${GRIDNAME}\"|" \
     -e "s|^export GRIDFILE=.*|export GRIDFILE=\"${SCRIP_OUTPATH}\"|" \
     -e "s|^#SBATCH --account=.*|#SBATCH --account=${ACCOUNT}|" \
