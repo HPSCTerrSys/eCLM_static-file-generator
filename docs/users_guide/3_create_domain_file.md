@@ -12,6 +12,7 @@ gfortran -o gen_domain src/gen_domain.F90 -mkl -I${INC_NETCDF} -lnetcdff -lnetcd
 If the Intel Math Kernel Library (MKL) is not available on your system, you can remove the `-mkl` flag without consequences for the output.
 After the compilation you can execute `gen_domain` with $MAPFILE being one of the mapping files created in the step before (in `mkmapdata/`) and $GRIDNAME being a string with the name of your grid, e.g. `EUR-R13B05` for the ~12-km icosahedral grid.
 The choice of $MAPFILE does not influence the lat- and longitude values in the domain file but can influence the land/sea mask.
+If you use the `EUR-R13B05` grid, you could set `MAPFILE="../mkmapdata/map_0.5x0.5_AVHRR_to_${GRIDNAME}_*_c${CDATE}.nc"`.
 
 **Hint:** For better reproducibility, specify the absolute path of
 `$MAPFILE`. The absolute path to the file can be printed using

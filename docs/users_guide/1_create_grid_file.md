@@ -27,6 +27,7 @@ The python script `mkscrip_rect.py` can create SCRIP files including the calcula
 It takes command line arguments like this:
 
 ```
+cd mkmapgrids/
 ./mkscrip_rect.py --ifile EUR-regLonLat01deg_1204x548_grid_inclbrz_v2.nc --ofile EUR-regLonLat01deg_659792_grid_SCRIP.nc --oformat SCRIP
 ```
 
@@ -87,6 +88,7 @@ Check out https://zonda.ethz.ch/ for generating icosahedral input grids for `mks
 Then convert your ICON gridfile to the SCRIP format with the python script `mkscrip_icos.py`:
 
 ```
+cd mkmapgrids/
 ./mkscrip_icos.py --ifile EUR-R13B05_199920_grid_inclbrz_v2.nc --ofile EUR-R13B05_199920_grid_SCRIP.nc
 ```
 
