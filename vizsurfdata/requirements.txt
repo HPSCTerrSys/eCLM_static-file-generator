@@ -1,0 +1,4 @@
+numpy
+matplotlib
+netCDF4
+cartopy  # optional – required for domain/site location maps; skipped gracefully if absent
