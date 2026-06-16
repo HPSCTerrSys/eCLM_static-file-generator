@@ -508,8 +508,13 @@ def soil_parameters(
             sucsat = (1 - om_frac) * sucsat + om_frac * om_sucsat
 
             perc_norm = np.where(om_frac > pcalpha, (1.0 - pcalpha) ** (-pcbeta), 0)
+            diff = np.maximum(om_frac - pcalpha, 0) # no negative
+                                                    # values allowed,
+                                                    # perc_frac are
+                                                    # anyway set to
+                                                    # zero
             perc_frac = np.where(
-                om_frac > pcalpha, perc_norm * (om_frac - pcalpha) ** pcbeta, 0
+                om_frac > pcalpha, perc_norm * diff ** pcbeta, 0
             )
             uncon_frac = (1 - om_frac) + (1 - perc_frac) * om_frac
             uncon_hksat = np.where(
