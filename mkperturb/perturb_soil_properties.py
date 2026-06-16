@@ -72,20 +72,23 @@ def rnd_state_deserialize(state_file):
     np.random.set_state(load_state)
 
 
-def copy_attr_dim(src, dst):
-    """Copy global attributes and dimensions from a source to a destination NetCDF dataset.
+def copy_attr_dim(src, dst, usr=None):
+    """
+    Copy dimensions and global attributes from a source to a destination NetCDF dataset.
 
-    All original global attributes are copied with the prefix
-    'original_attribute_'. The dimensions are copied with their sizes.
-    Additionally, 'perturbed_by' (from $USER) and 'perturbed_on_date' attributes
-    are added to the destination.
+    All global attributes from ``src`` are copied to ``dst`` under the prefix
+    ``original_attribute_``. Provenance metadata (``perturbed_by``,
+    ``perturbed_on_date``) is added to ``dst``.
 
     Parameters
     ----------
     src : netCDF4.Dataset
-        Open source dataset to copy from.
+        Source dataset to copy dimensions and attributes from.
     dst : netCDF4.Dataset
-        Open destination dataset to copy into.
+        Destination dataset to write dimensions and attributes to.
+    usr : str, optional
+        Username to record in the ``perturbed_by`` attribute. Defaults to the
+        ``USER`` environment variable, or ``"unknown"`` if not set.
     """
     # copy attributes
     for name in src.ncattrs():
@@ -94,9 +97,12 @@ def copy_attr_dim(src, dst):
     for name, dimension in src.dimensions.items():
         dst.createDimension(name, len(dimension))
     # Additional attribute
-    dst.setncattr("perturbed_by", os.getenv("USER", "unknown"))
+    if usr is None:
+        usr = os.environ.get("USER", "unknown")
+    dst.setncattr("perturbed_by", usr)
     dst.setncattr("perturbed_on_date",
                   datetime.datetime.today().strftime("%d.%m.%y"))
+    # TODO: More attributes, possibly repository-related
 
 
 def disturb_sand_clay(input_file, output_dir, iensemble=0, noise_range=10):
