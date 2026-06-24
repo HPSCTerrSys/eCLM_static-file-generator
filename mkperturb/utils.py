@@ -96,9 +96,9 @@ def copy_attr_dim(src, dst, usr=None, script=None):
         Path of the calling script to record in ``perturbed_with_script``.
         Pass ``__file__`` from the calling script. Defaults to ``"unknown"``.
     """
-    # copy attributes
+    # copy attributes as-is to preserve CF-convention names
     for name in src.ncattrs():
-        dst.setncattr("original_attribute_" + name, src.getncattr(name))
+        dst.setncattr(name, src.getncattr(name))
     # copy dimensions
     for name, dimension in src.dimensions.items():
         dst.createDimension(name, len(dimension))
@@ -110,6 +110,10 @@ def copy_attr_dim(src, dst, usr=None, script=None):
                   datetime.datetime.today().strftime("%d.%m.%y"))
     dst.setncattr("perturbed_with_script",
                   script if script is not None else "unknown")
+    # append to history attribute to document the processing step
+    old_history = src.getncattr("history") if "history" in src.ncattrs() else ""
+    dst.setncattr("history", old_history +
+                  f"\n{datetime.date.today()}: perturbed by {usr} with {script}")
     # provenance: git
     if not _GIT_AVAILABLE:
         warnings.warn("`import git` not available.", UserWarning)
