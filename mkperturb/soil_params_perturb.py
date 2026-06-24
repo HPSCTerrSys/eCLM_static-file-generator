@@ -224,7 +224,7 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
                                 fill_value=1.e+30)
         ks.setncatts({'long_name': u"Sat. hydraulic conductivity", 'units': u"mm/s"})
         xksat                    = 0.0070556 *( 10.**(-0.884+0.0153*SAND))
-        xksat_std                = 0.459 + 0.00321*(1-(SAND+CLAY)/100)
+        xksat_std                = 0.459 + 0.00321*(100-(SAND+CLAY))
         noise_xksat              = np.random.normal(loc=0.0, scale=xksat_std, size=pct_sand.shape)
         perturbed_log_xksat      = np.log10(xksat) + noise_xksat
         back_transformed_xksat   = np.power(10, perturbed_log_xksat)
