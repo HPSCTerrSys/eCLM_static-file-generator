@@ -132,7 +132,7 @@ def disturb_sand_clay(input_file, output_dir, iensemble=0, noise_range=10):
 
     with nc.Dataset(sorig) as src, nc.Dataset(sname, "w") as dst:
         # Copy attributes
-        copy_attr_dim(src, dst)
+        copy_attr_dim(src, dst, script="perturb_soil_properties.py")
 
         # Copy non-perturbed variables:
         for name, var in src.variables.items():
@@ -270,7 +270,7 @@ def soil_parameters(
 
     with nc.Dataset(sorig) as src, nc.Dataset(sname, "w") as dst:
 
-        copy_attr_dim(src, dst)
+        copy_attr_dim(src, dst, script="perturb_soil_properties.py")
 
         dst.createDimension("nlevgrnd", 25)
 

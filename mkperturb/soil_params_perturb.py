@@ -23,7 +23,7 @@ def perturb_soil_textures_and_parameters(iensemble=0):
     
     with nc.Dataset(sorig) as src, nc.Dataset(sname, "w") as dst:
         # Copy attributes
-        copy_attr_dim(src, dst)
+        copy_attr_dim(src, dst, script="soil_params_perturb.py")
         # dimension of perturbed fields
         dim_lvl   = src.dimensions["nlevsoi"].size
         dim_lat   = src.dimensions["lsmlat"].size

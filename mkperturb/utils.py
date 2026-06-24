@@ -1,7 +1,14 @@
 import os
+import warnings
 import numpy as np
 import json
 import datetime
+
+try:
+    import git
+    _GIT_AVAILABLE = True
+except ImportError:
+    _GIT_AVAILABLE = False
 
 # Helper functions
 # ----------------
@@ -67,13 +74,14 @@ def rnd_state_deserialize(state_file):
 
 
 # Helper function - copy attributes and dimensions
-def copy_attr_dim(src, dst, usr=None):
+def copy_attr_dim(src, dst, usr=None, script=None):
     """
     Copy dimensions and global attributes from a source to a destination NetCDF dataset.
 
     All global attributes from ``src`` are copied to ``dst`` under the prefix
     ``original_attribute_``. Provenance metadata (``perturbed_by``,
-    ``perturbed_on_date``) is added to ``dst``.
+    ``perturbed_on_date``, ``perturbed_with_script``, ``git-repository``,
+    ``git-hash``) is added to ``dst``.
 
     Parameters
     ----------
@@ -84,6 +92,9 @@ def copy_attr_dim(src, dst, usr=None):
     usr : str, optional
         Username to record in the ``perturbed_by`` attribute. Defaults to the
         ``USER`` environment variable, or ``"unknown"`` if not set.
+    script : str, optional
+        Path of the calling script to record in ``perturbed_with_script``.
+        Pass ``__file__`` from the calling script. Defaults to ``"unknown"``.
     """
     # copy attributes
     for name in src.ncattrs():
@@ -91,10 +102,35 @@ def copy_attr_dim(src, dst, usr=None):
     # copy dimensions
     for name, dimension in src.dimensions.items():
         dst.createDimension(name, len(dimension))
-    # Additional attribute
+    # provenance: user, date, script
     if usr is None:
         usr = os.environ.get("USER", "unknown")
     dst.setncattr("perturbed_by", usr)
     dst.setncattr("perturbed_on_date",
                   datetime.datetime.today().strftime("%d.%m.%y"))
-    # TODO: More attributes, possibly repository-related
+    dst.setncattr("perturbed_with_script",
+                  script if script is not None else "unknown")
+    # provenance: git
+    if not _GIT_AVAILABLE:
+        warnings.warn("`import git` not available.", UserWarning)
+        dst.setncattr("git-repository", "unknown (gitpython not installed)")
+        dst.setncattr("git-hash", "unknown (gitpython not installed)")
+        return
+    try:
+        repo = git.Repo(search_parent_directories=True)
+    except git.InvalidGitRepositoryError:
+        warnings.warn("Not inside a git repository.", UserWarning)
+        dst.setncattr("git-repository", "unknown (not a git repository)")
+        dst.setncattr("git-hash", "unknown (not a git repository)")
+        return
+    try:
+        repo_url = repo.remotes.origin.url
+    except AttributeError:
+        repo_url = "unknown (no remote 'origin')"
+    dst.setncattr("git-repository", repo_url)
+    if len(repo.git.ls_files(m=True)) > 0:
+        warnings.warn("Dirty worktree in git repository! Check `git status`",
+                      UserWarning)
+        dst.setncattr("git-hash (dirty worktree)", repo.head.object.hexsha[:10])
+    else:
+        dst.setncattr("git-hash", repo.head.object.hexsha[:10])
