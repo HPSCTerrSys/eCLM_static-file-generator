@@ -15,7 +15,8 @@ perturbed textures via Clapp-Hornberger pedotransfer functions and
 perturbed with additive Gaussian noise in log-space, using per-cell
 standard deviations that depend on sand and clay content.
 
-Source:
+Source for standard deviations of soil hydraulic parameter is Table 5
+(and a little Table 4) from:
 - Cosby, B. J., Hornberger, G. M., Clapp, R. B., & Ginn,
   T. R. (1984). A statistical exploration of the relationships of soil
   moisture characteristics to the physical properties of soils. Water
