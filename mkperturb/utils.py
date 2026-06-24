@@ -80,8 +80,8 @@ def copy_attr_dim(src, dst, usr=None, script=None):
 
     All global attributes from ``src`` are copied to ``dst`` under the prefix
     ``original_attribute_``. Provenance metadata (``perturbed_by``,
-    ``perturbed_on_date``, ``perturbed_with_script``, ``git-repository``,
-    ``git-hash``) is added to ``dst``.
+    ``perturbed_on_date``, ``perturbed_with_script``, ``perturbed_with_git_repo``,
+    ``perturbed_with_git_hash``) is added to ``dst``.
 
     Parameters
     ----------
@@ -117,24 +117,24 @@ def copy_attr_dim(src, dst, usr=None, script=None):
     # provenance: git
     if not _GIT_AVAILABLE:
         warnings.warn("`import git` not available.", UserWarning)
-        dst.setncattr("git-repository", "unknown (gitpython not installed)")
-        dst.setncattr("git-hash", "unknown (gitpython not installed)")
+        dst.setncattr("perturbed_with_git_repo", "unknown (gitpython not installed)")
+        dst.setncattr("perturbed_with_git_hash", "unknown (gitpython not installed)")
         return
     try:
         repo = git.Repo(search_parent_directories=True)
     except git.InvalidGitRepositoryError:
         warnings.warn("Not inside a git repository.", UserWarning)
-        dst.setncattr("git-repository", "unknown (not a git repository)")
-        dst.setncattr("git-hash", "unknown (not a git repository)")
+        dst.setncattr("perturbed_with_git_repo", "unknown (not a git repository)")
+        dst.setncattr("perturbed_with_git_hash", "unknown (not a git repository)")
         return
     try:
         repo_url = repo.remotes.origin.url
     except AttributeError:
         repo_url = "unknown (no remote 'origin')"
-    dst.setncattr("git-repository", repo_url)
+    dst.setncattr("perturbed_with_git_repo", repo_url)
     if len(repo.git.ls_files(m=True)) > 0:
         warnings.warn("Dirty worktree in git repository! Check `git status`",
                       UserWarning)
-        dst.setncattr("git-hash (dirty worktree)", repo.head.object.hexsha[:10])
+        dst.setncattr("perturbed_with_git_hash (dirty worktree)", repo.head.object.hexsha[:10])
     else:
-        dst.setncattr("git-hash", repo.head.object.hexsha[:10])
+        dst.setncattr("perturbed_with_git_hash", repo.head.object.hexsha[:10])
