@@ -107,7 +107,7 @@ def copy_attr_dim(src, dst, usr=None, script=None):
         usr = os.environ.get("USER", "unknown")
     dst.setncattr("perturbed_by", usr)
     dst.setncattr("perturbed_on_date",
-                  datetime.datetime.today().strftime("%d.%m.%y"))
+                  datetime.datetime.today().strftime("%Y-%m-%d"))
     dst.setncattr("perturbed_with_script",
                   script if script is not None else "unknown")
     # append to history attribute to document the processing step
