@@ -1,4 +1,5 @@
 import os
+import sys
 import warnings
 import numpy as np
 import json
@@ -113,7 +114,7 @@ def copy_attr_dim(src, dst, usr=None, script=None):
     # append to history attribute to document the processing step
     old_history = src.getncattr("history") if "history" in src.ncattrs() else ""
     dst.setncattr("history", old_history +
-                  f"\n{datetime.date.today()}: perturbed by {usr} with {script}")
+                  f"\n{datetime.date.today()}: {' '.join(sys.argv)}")
     # provenance: git
     if not _GIT_AVAILABLE:
         warnings.warn("`import git` not available.", UserWarning)
