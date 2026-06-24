@@ -44,31 +44,52 @@ def rnd_state_serialize(state_file):
     state_file : str
         Path to the output JSON file.
     """
+    # retrieve the current state of the NumPy random number generator
     tmp_state = np.random.get_state()
+
+    # initialize a tuple to hold the serialized state
     save_state = ()
+
+    # loop over each element of the state
     for i in tmp_state:
+        # check if the element is a NumPy array
         if type(i) is np.ndarray:
+            # convert the NumPy array to a list and add it to the save_state tuple
             save_state = save_state + (i.tolist(),)
         else:
+            # if not, it is added to the save_state tuple as is
             save_state = save_state + (i,)
+
+    # write the serialized state to a JSON file
     json.dump(save_state, open(state_file, "w"))
 
 
 def rnd_state_deserialize(state_file):
-    """Restore the NumPy random state from a JSON file written by rnd_state_serialize.
+    """
+    Restore the NumPy random state from a JSON file written by rnd_state_serialize.
 
     Parameters
     ----------
     state_file : str
         Path to the JSON file containing the saved random state.
     """
+    # read the serialized state from the "rnd_state.json" file
     tmp_state = json.load(open(state_file, "r"))
+
+    # initialize a tuple to hold the deserialized state
     load_state = ()
+
+    # loop over each element of the serialized state
     for i in tmp_state:
+        # check if the element is a list
         if type(i) is list:
+            # convert the list to a NumPy array and add it to the load_state tuple
             load_state = load_state + (np.array(i),)
         else:
+            # if not, it is added to the load_state tuple as is
             load_state = load_state + (i,)
+
+    # set the state of the NumPy random number generator to the deserialized state.
     np.random.set_state(load_state)
 
 
