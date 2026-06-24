@@ -1,9 +1,7 @@
-import numpy as np
-import netCDF4 as nc
 import os
+import numpy as np
 import json
 import datetime
-from scipy import interpolate
 
 # Helper functions
 # ----------------
