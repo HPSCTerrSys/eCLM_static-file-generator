@@ -122,7 +122,10 @@ def copy_attr_dim(src, dst, usr=None, script=None):
         dst.setncattr("perturbed_with_git_hash", "unknown (gitpython not installed)")
         return
     try:
-        repo = git.Repo(search_parent_directories=True)
+        # Anchor to utils.py's own location so that the correct repo is found
+        # regardless of the working directory the script is called from.
+        repo = git.Repo(os.path.dirname(os.path.abspath(__file__)),
+                        search_parent_directories=True)
     except git.InvalidGitRepositoryError:
         warnings.warn("Not inside a git repository.", UserWarning)
         dst.setncattr("perturbed_with_git_repo", "unknown (not a git repository)")
