@@ -29,14 +29,12 @@ a NetCDF file named after the input file with a zero-padded member index appende
 Reproducibility is supported via a fixed random seed.
 """
 
+import argparse
 import os
 import numpy as np
 import netCDF4 as nc
 
 from utils import rnd_state_serialize, rnd_state_deserialize, copy_attr_dim
-
-
-num_ensemble = 150
 
 
 def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, noise_range=20.0):
@@ -125,11 +123,6 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
                         if old_sum > 100.0:
                             pct[t, l, la, lo] = 100.0 * pct[t, l, la, lo] / old_sum
         
-        # After generating all random variables
-        # save state of random number generator to file
-        if not force_seed:
-            rnd_state_serialize()
-
         # Copy non-perturbed variables:
         for name, var in src.variables.items():
             if name != "PCT_SAND" and name != "PCT_CLAY" and name != "ORGANIC":
@@ -220,16 +213,33 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
         perturbed_log_xksat      = np.log10(xksat) + noise_xksat
         back_transformed_xksat   = np.power(10, perturbed_log_xksat)
         dst.variables["KSAT"][:] = back_transformed_xksat
-        
 
-rnd_state_file = "rnd_state.json"
-force_seed = False 
-# Either seed random number generator or continue with existing state
-if not os.path.isfile(rnd_state_file) or force_seed:
-    np.random.seed(67890)
-else:
-    rnd_state_deserialize()
 
-for ens in range(num_ensemble):
-    perturb_soil_textures_and_parameters(ens)
-    print(f"Ensemble member {ens + 1} perturbed and saved to output file.")
+def main():
+    """Parse command-line arguments and run the ensemble perturbation."""
+    parser = argparse.ArgumentParser(
+        description="Perturb soil texture and hydraulic properties in an eCLM surface file."
+    )
+    parser.add_argument("input_file", help="Path to the source surface NetCDF file.")
+    parser.add_argument("output_dir", help="Directory for the perturbed ensemble output files.")
+    args = parser.parse_args()
+
+    rnd_state_file = "rnd_state.json"
+    force_seed = False
+    if not os.path.isfile(rnd_state_file) or force_seed:
+        np.random.seed(67890)
+    else:
+        rnd_state_deserialize(rnd_state_file)
+
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    num_ensemble = 150
+    for ens in range(num_ensemble):
+        perturb_soil_textures_and_parameters(args.input_file, args.output_dir, ens)
+        print(f"Ensemble member {ens + 1} perturbed and saved to output file.")
+
+    rnd_state_serialize(rnd_state_file)
+
+
+if __name__ == "__main__":
+    main()
