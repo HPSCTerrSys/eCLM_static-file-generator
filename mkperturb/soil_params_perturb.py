@@ -36,18 +36,45 @@ import netCDF4 as nc
 from utils import rnd_state_serialize, rnd_state_deserialize, copy_attr_dim
 
 
-#years = list(range(2014, 2019))
 num_ensemble = 150
 
-def perturb_soil_textures_and_parameters(iensemble=0):
-    #Sand and clay content were perturbed with random noise drawn from spatially uniform distribution (±20 %). 
-    #In order to avoid un-physical values of the soil parameters, the sum of the sand and clay content were 
-    #constrained to have a value not larger than 100 %.
-    sname = ("/home/fernand/JURECA/CLM5_DATA/inputdata/lnd/clm2/surfdata_map/trial_22/SE-Svb/" +
-             "ensemble/" +"surfdata_SE-Svb_hist_78pfts_CMIP6_simyr2000_c240511_pft_modified.nc_" +  
-             str(iensemble + 1).zfill(5) + ".nc")
-    sorig = ("/home/fernand/JURECA/CLM5_DATA/inputdata/lnd/clm2/surfdata_map/trial_22/SE-Svb/ensemble/" +"surfdata_SE-Svb_hist_78pfts_CMIP6_simyr2000_c240511_pft_modified.nc")
-    
+
+def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, noise_range=20.0):
+    """
+    Perturb soil texture and hydraulic properties for one ensemble member.
+
+    Sand, clay, and organic matter fractions are perturbed by adding a spatially
+    uniform scalar noise drawn from Uniform(-noise_range, +noise_range) independently
+    for each fraction. The same noise value is applied across all soil levels and all
+    grid cells. Physical constraints are enforced afterwards:
+      - Sand and clay are clipped to [0, 99] %.
+      - Organic matter is clipped to [0, 130] kg/m³.
+      - Sand + clay is kept ≤ 100 % via proportional rescaling.
+
+    Soil hydraulic properties (PSIS_SAT, THETAS, SHAPE_PARAM, KSAT) are then derived
+    from the perturbed textures via Clapp-Hornberger pedotransfer functions and
+    perturbed with additive per-cell Gaussian noise in log-space, using standard
+    deviations that depend on local sand and clay content.
+
+    The output file is named after the input file with a zero-padded ensemble index
+    appended, e.g. surfdata_..._00001.nc.
+
+    Parameters
+    ----------
+    input_file : str
+        Path to the source eCLM surface NetCDF file.
+    output_dir : str
+        Directory in which the perturbed file is written.
+    iensemble : int, optional
+        0-based ensemble member index used for output file naming (default: 0).
+    noise_range : float, optional
+        Half-range of the uniform noise in percentage points (default: 20,
+        i.e. noise drawn from [-20, +20]).
+    """
+    sorig = input_file
+    stem = os.path.splitext(os.path.basename(sorig))[0]
+    sname = os.path.join(output_dir, f"{stem}_{str(iensemble + 1).zfill(5)}.nc")
+
     with nc.Dataset(sorig) as src, nc.Dataset(sname, "w") as dst:
         # Copy attributes
         copy_attr_dim(src, dst, script="soil_params_perturb.py")
@@ -58,7 +85,7 @@ def perturb_soil_textures_and_parameters(iensemble=0):
         dim_types = 3
 
         # Perturb %SAND, %CLAY and OM:
-        rnd_type_cell = np.random.uniform(low=-20.0, high=20.0, size=dim_lat*dim_lon*dim_types).reshape(dim_types, dim_lat*dim_lon)
+        rnd_type_cell = np.random.uniform(low=-noise_range, high=noise_range, size=dim_lat*dim_lon*dim_types).reshape(dim_types, dim_lat*dim_lon)
         rnd = np.zeros((dim_types, dim_lvl, dim_lat*dim_lon))
         for t in range(dim_types):
             for c in range(dim_lat*dim_lon):
@@ -194,8 +221,6 @@ def perturb_soil_textures_and_parameters(iensemble=0):
         back_transformed_xksat   = np.power(10, perturbed_log_xksat)
         dst.variables["KSAT"][:] = back_transformed_xksat
         
-        #, bsw.flatten(), perturbed_bsw.flatten(), xksat.flatten(), back_transformed_xksat.flatten(), perturbed_xksat.flatten(), watsat.flatten(), perturbed_watsat.flatten(), sucsat, back_transformed_sucsat.flatten(), perturbed_sucsat.flatten()
-        return SAND.flatten(), CLAY.flatten(), sucsat.flatten(), perturbed_log_sucsat.flatten(), back_transformed_sucsat.flatten(), watsat.flatten(), perturbed_watsat.flatten(), bsw.flatten(), perturbed_bsw.flatten(), xksat.flatten(), perturbed_log_xksat.flatten(), back_transformed_xksat.flatten()
 
 rnd_state_file = "rnd_state.json"
 force_seed = False 
