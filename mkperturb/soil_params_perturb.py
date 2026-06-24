@@ -43,6 +43,10 @@ Resume a previous run using a saved random state::
 Generate members 51–100 with a custom noise range::
 
     python soil_params_perturb.py surfdata.nc ./ensemble/ --start 50 --count 50 --noise-range 10
+
+Write hydraulic parameters without the _adj suffix (nlevsoi grid, no nlevgrnd dimension)::
+
+    python soil_params_perturb.py surfdata.nc ./ensemble/ --no-adj
 """
 
 import argparse
@@ -53,7 +57,7 @@ import netCDF4 as nc
 from utils import rnd_state_serialize, rnd_state_deserialize, copy_attr_dim
 
 
-def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, noise_range=20.0):
+def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, noise_range=20.0, adj=True):
     """
     Perturb soil texture and hydraulic properties for one ensemble member.
 
@@ -65,10 +69,10 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
       - Organic matter is clipped to [0, 130] kg/m³.
       - Sand + clay is kept ≤ 100 % via proportional rescaling.
 
-    Soil hydraulic properties (PSIS_SAT, THETAS, SHAPE_PARAM, KSAT) are then derived
-    from the perturbed textures via Clapp-Hornberger pedotransfer functions and
-    perturbed with additive per-cell Gaussian noise in log-space, using standard
-    deviations that depend on local sand and clay content.
+    Soil hydraulic properties are then derived from the perturbed textures via
+    Clapp-Hornberger pedotransfer functions and perturbed with additive per-cell
+    Gaussian noise in log-space, using standard deviations that depend on local
+    sand and clay content.
 
     The output file is named after the input file with a zero-padded ensemble index
     appended, e.g. surfdata_..._00001.nc.
@@ -84,6 +88,15 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
     noise_range : float, optional
         Half-range of the uniform noise in percentage points (default: 20,
         i.e. noise drawn from [-20, +20]).
+    adj : bool, optional
+        If True (default), write hydraulic parameters with the ``_adj`` suffix
+        (PSIS_SAT_adj, THETAS_adj, SHAPE_PARAM_adj, KSAT_adj) on the full CLM
+        ground layer grid (nlevgrnd = 25). The 5 deep layers below nlevsoi are
+        filled by repeating the last nlevsoi layer. Use with
+        ``soil_hyd_inparm_from_file_adj = .true.`` in lnd_in.
+        If False, write without suffix (PSIS_SAT, THETAS, SHAPE_PARAM, KSAT)
+        on the nlevsoi grid only. Use with
+        ``soil_hyd_inparm_from_file = .true.`` in lnd_in.
     """
     sorig = input_file
     stem = os.path.splitext(os.path.basename(sorig))[0]
@@ -97,6 +110,12 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
         dim_lat   = src.dimensions["lsmlat"].size
         dim_lon   = src.dimensions["lsmlon"].size
         dim_types = 3
+        nlevgrnd  = 25
+
+        suffix  = "_adj" if adj else ""
+        hyd_dim = "nlevgrnd" if adj else "nlevsoi"
+        if adj:
+            dst.createDimension("nlevgrnd", nlevgrnd)
 
         # Perturb %SAND, %CLAY and OM:
         rnd_type_cell = np.random.uniform(low=-noise_range, high=noise_range, size=dim_lat*dim_lon*dim_types).reshape(dim_types, dim_lat*dim_lon)
@@ -198,9 +217,9 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
         # -----------------------------------------------------------------------
 
         # Saturated soil matric potential
-        psis_sat = dst.createVariable("PSIS_SAT",
+        psis_sat = dst.createVariable(f"PSIS_SAT{suffix}",
                                     datatype=np.float64,
-                                    dimensions=("nlevsoi", "lsmlat", "lsmlon",),
+                                    dimensions=(hyd_dim, "lsmlat", "lsmlon",),
                                     fill_value=1.e+30)
         psis_sat.setncatts({'long_name': u"Sat. soil matric potential",
                                 'units': u"mmH20"})
@@ -216,12 +235,14 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
         noise_sucsat                 = np.random.normal(loc=0.0, scale=sucsat_std, size=pct_sand.shape)
         perturbed_log_sucsat         = np.log10(sucsat) + noise_sucsat
         back_transformed_sucsat      = np.clip(np.power(10, perturbed_log_sucsat), 0, 1000)
-        dst.variables["PSIS_SAT"][:] = back_transformed_sucsat
+        dst.variables[f"PSIS_SAT{suffix}"][:dim_lvl] = back_transformed_sucsat
+        if adj:
+            dst.variables[f"PSIS_SAT{suffix}"][dim_lvl:] = back_transformed_sucsat[-1:]
 
         # Porosity
-        thetas = dst.createVariable("THETAS",
+        thetas = dst.createVariable(f"THETAS{suffix}",
                                     datatype=np.float64,
-                                    dimensions=("nlevsoi", "lsmlat", "lsmlon",),
+                                    dimensions=(hyd_dim, "lsmlat", "lsmlon",),
                                     fill_value=1.e+30)
         thetas.setncatts({'long_name': u"Porosity",
                                 'units': u"vol/vol"})
@@ -233,12 +254,14 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
         watsat_std                 = (7.73-0.073*CLAY) / 100.0
         noise_watsat               = np.random.normal(loc=0.0, scale=watsat_std, size=pct_sand.shape)
         perturbed_watsat           = watsat + noise_watsat
-        dst.variables["THETAS"][:] = perturbed_watsat
+        dst.variables[f"THETAS{suffix}"][:dim_lvl] = perturbed_watsat
+        if adj:
+            dst.variables[f"THETAS{suffix}"][dim_lvl:] = perturbed_watsat[-1:]
 
         # Shape (b) parameter
-        shape_param = dst.createVariable("SHAPE_PARAM",
+        shape_param = dst.createVariable(f"SHAPE_PARAM{suffix}",
                                     datatype=np.float64,
-                                    dimensions=("nlevsoi", "lsmlat", "lsmlon",),
+                                    dimensions=(hyd_dim, "lsmlat", "lsmlon",),
                                     fill_value=1.e+30)
         shape_param.setncatts({'long_name': u"Shape (b) parameter",
                                 'units': u"unitless"})
@@ -249,12 +272,14 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
         noise_bsw                        = np.random.normal(loc=0.0, scale=bsw_std, size=pct_clay.shape)
         perturbed_bsw                    = bsw + noise_bsw
         perturbed_bsw[perturbed_bsw < 0] = 0
-        dst.variables["SHAPE_PARAM"][:]  = perturbed_bsw
+        dst.variables[f"SHAPE_PARAM{suffix}"][:dim_lvl] = perturbed_bsw
+        if adj:
+            dst.variables[f"SHAPE_PARAM{suffix}"][dim_lvl:] = perturbed_bsw[-1:]
 
         # Saturated hydraulic conductivity
-        ks = dst.createVariable("KSAT",
+        ks = dst.createVariable(f"KSAT{suffix}",
                                 datatype=np.float64,
-                                dimensions=("nlevsoi", "lsmlat", "lsmlon",),
+                                dimensions=(hyd_dim, "lsmlat", "lsmlon",),
                                 fill_value=1.e+30)
         ks.setncatts({'long_name': u"Sat. hydraulic conductivity", 'units': u"mm/s"})
         # Mean log Ks = 0.0153 * %sand - 0.884  (Table 5, Ks in inches/hour)
@@ -266,7 +291,9 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
         noise_xksat              = np.random.normal(loc=0.0, scale=xksat_std, size=pct_sand.shape)
         perturbed_log_xksat      = np.log10(xksat) + noise_xksat
         back_transformed_xksat   = np.power(10, perturbed_log_xksat)
-        dst.variables["KSAT"][:] = back_transformed_xksat
+        dst.variables[f"KSAT{suffix}"][:dim_lvl] = back_transformed_xksat
+        if adj:
+            dst.variables[f"KSAT{suffix}"][dim_lvl:] = back_transformed_xksat[-1:]
 
 
 def main():
@@ -290,6 +317,16 @@ def main():
                              "If the file exists, the state is restored from it (resuming a "
                              "previous run) and --seed is ignored. After the run, the state "
                              "is saved to this file.")
+    parser.add_argument(
+        "--no-adj",
+        action="store_true",
+        default=False,
+        help="Write hydraulic parameters without the _adj suffix (PSIS_SAT, THETAS, "
+             "SHAPE_PARAM, KSAT) on the nlevsoi grid. Use with "
+             "soil_hyd_inparm_from_file = .true. in lnd_in. "
+             "Default: write with _adj suffix on the nlevgrnd=25 grid, for use with "
+             "soil_hyd_inparm_from_file_adj = .true.",
+    )
     args = parser.parse_args()
 
     if args.state_file and os.path.isfile(args.state_file):
@@ -304,7 +341,8 @@ def main():
 
     for ens in range(args.start, args.start + args.count):
         perturb_soil_textures_and_parameters(
-            args.input_file, args.output_dir, ens, noise_range=args.noise_range
+            args.input_file, args.output_dir, ens,
+            noise_range=args.noise_range, adj=not args.no_adj,
         )
         print(f"Ensemble member {ens + 1} perturbed and saved to output file.")
 
