@@ -26,7 +26,22 @@ Each call to the perturbation function generates one ensemble member and writes 
 a NetCDF file named after the input file with a zero-padded member index appended
 (e.g. surfdata_..._00001.nc).
 
-Reproducibility is supported via a fixed random seed.
+Reproducibility is supported via --seed (default: 67890) or by saving/restoring
+the NumPy random state to/from a JSON file (--state-file).
+
+Usage
+-----
+Generate 150 ensemble members with default settings::
+
+    python soil_params_perturb.py surfdata.nc ./ensemble/
+
+Resume a previous run using a saved random state::
+
+    python soil_params_perturb.py surfdata.nc ./ensemble/ --state-file rnd_state.json
+
+Generate members 51–100 with a custom noise range::
+
+    python soil_params_perturb.py surfdata.nc ./ensemble/ --start 50 --count 50 --noise-range 10
 """
 
 import argparse
@@ -222,23 +237,41 @@ def main():
     )
     parser.add_argument("input_file", help="Path to the source surface NetCDF file.")
     parser.add_argument("output_dir", help="Directory for the perturbed ensemble output files.")
+    parser.add_argument("--start", type=int, default=0,
+                        help="First ensemble member index (0-based, default: 0).")
+    parser.add_argument("--count", type=int, default=150,
+                        help="Number of ensemble members to generate (default: 150).")
+    parser.add_argument("--noise-range", type=float, default=20.0,
+                        help="Half-range of uniform noise for sand/clay/OM perturbation "
+                             "in percentage points (default: 20).")
+    parser.add_argument("--seed", type=int, default=67890,
+                        help="Seed for the random number generator (default: 67890).")
+    parser.add_argument("--state-file", default=None,
+                        help="Path to a JSON file for saving/restoring the random state. "
+                             "If the file exists, the state is restored from it (resuming a "
+                             "previous run) and --seed is ignored. After the run, the state "
+                             "is saved to this file.")
     args = parser.parse_args()
 
-    rnd_state_file = "rnd_state.json"
-    force_seed = False
-    if not os.path.isfile(rnd_state_file) or force_seed:
-        np.random.seed(67890)
+    if args.state_file and os.path.isfile(args.state_file):
+        print(f"Warning: --state-file '{args.state_file}' exists; ignoring --seed.")
+        rnd_state_deserialize(args.state_file)
+        print(f"Restored random state from '{args.state_file}'.")
     else:
-        rnd_state_deserialize(rnd_state_file)
+        np.random.seed(args.seed)
+        print(f"Random seed: {args.seed}")
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    num_ensemble = 150
-    for ens in range(num_ensemble):
-        perturb_soil_textures_and_parameters(args.input_file, args.output_dir, ens)
+    for ens in range(args.start, args.start + args.count):
+        perturb_soil_textures_and_parameters(
+            args.input_file, args.output_dir, ens, noise_range=args.noise_range
+        )
         print(f"Ensemble member {ens + 1} perturbed and saved to output file.")
 
-    rnd_state_serialize(rnd_state_file)
+    if args.state_file:
+        rnd_state_serialize(args.state_file)
+        print(f"Saved random state to '{args.state_file}'.")
 
 
 if __name__ == "__main__":
