@@ -1,10 +1,37 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+Perturb soil texture and hydraulic properties in eCLM surface files
+for ensemble generation.
+
+Sand, clay, and organic matter fractions are perturbed by adding
+spatially uniform noise drawn from a uniform distribution
+(±noise_range %). Physical constraints are enforced afterwards: values
+are clipped to valid ranges and sand + clay is kept ≤ 100 %.
+
+Soil hydraulic properties (saturated matric potential, porosity, shape
+parameter, saturated hydraulic conductivity) are then derived from the
+perturbed textures via Clapp-Hornberger pedotransfer functions and
+perturbed with additive Gaussian noise in log-space, using per-cell
+standard deviations that depend on sand and clay content.
+
+Source:
+- Cosby, B. J., Hornberger, G. M., Clapp, R. B., & Ginn,
+  T. R. (1984). A statistical exploration of the relationships of soil
+  moisture characteristics to the physical properties of soils. Water
+  Resources Research, 20(6),
+  682–690. http://dx.doi.org/10.1029/wr020i006p00682
+
+Each call to the perturbation function generates one ensemble member and writes it to
+a NetCDF file named after the input file with a zero-padded member index appended
+(e.g. surfdata_..._00001.nc).
+
+Reproducibility is supported via a fixed random seed.
+"""
 
 import os
 import numpy as np
 import netCDF4 as nc
-import matplotlib.pyplot as plt
 
 from utils import rnd_state_serialize, rnd_state_deserialize, copy_attr_dim
 
