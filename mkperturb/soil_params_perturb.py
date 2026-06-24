@@ -176,14 +176,42 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
         
         
         # Perturb soil hydraulic parameters
+        # -----------------------------------------------------------------------
+        # Means and standard deviations of the hydraulic parameters are taken
+        # from the univariate regression equations of Table 5 in Cosby et al.
+        # (1984), which relate each parameter to percent sand, silt, or clay:
+        #
+        #   Parameter       Variable   Slope     Intercept   r²     Significant
+        #   Mean b          % clay     0.159      2.91       0.966   yes
+        #   Mean log Ψs     % sand    -0.0131     1.88       0.809   yes
+        #   Mean log Ks     % sand     0.0153    -0.884      0.839   yes
+        #   Mean Θs         % sand    -0.126     48.9        0.771   yes
+        #   S.D. b          % clay     0.0500     1.34       0.524   yes
+        #   S.D. log Ψs     —          —          —          —       no
+        #   S.D. log Ks     % silt     0.00321    0.459      0.369   yes
+        #   S.D. Θs         % clay    -0.0730     7.73       0.567   yes
+        #
+        # Units in Cosby et al.:
+        #   Ψs in cm H₂O  →  multiply by 10 to convert to mm H₂O (CLM convention)
+        #   Ks in inches/hour  →  multiply by 0.0070556 to convert to mm/s
+        #   Θs in % (volume/volume)  →  divide by 100 to convert to vol/vol fraction
+        # -----------------------------------------------------------------------
+
         # Saturated soil matric potential
         psis_sat = dst.createVariable("PSIS_SAT",
-                                    datatype=np.float64, 
-                                    dimensions=("nlevsoi", "lsmlat", "lsmlon",), 
+                                    datatype=np.float64,
+                                    dimensions=("nlevsoi", "lsmlat", "lsmlon",),
                                     fill_value=1.e+30)
         psis_sat.setncatts({'long_name': u"Sat. soil matric potential",
                                 'units': u"mmH20"})
+        # Mean log Ψs = -0.0131 * %sand + 1.88  (Table 5, Ψs in cm H₂O)
+        # Factor of 10 converts cm H₂O → mm H₂O
         sucsat                       = 10. * ( 10.**(1.88-0.0131*SAND))
+        # S.D. log Ψs has no significant relationship with any texture variable
+        # (Table 5). The intercept 0.72 is taken from the non-significant
+        # multivariate regression in Table 4 and used as a constant baseline.
+        # The clay slope (0.0012, p=0.355) is retained from Table 4 but is
+        # not significant and has negligible effect.
         sucsat_std                   = 0.72 + 0.0012*CLAY
         noise_sucsat                 = np.random.normal(loc=0.0, scale=sucsat_std, size=pct_sand.shape)
         perturbed_log_sucsat         = np.log10(sucsat) + noise_sucsat
@@ -192,12 +220,16 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
 
         # Porosity
         thetas = dst.createVariable("THETAS",
-                                    datatype=np.float64, 
-                                    dimensions=("nlevsoi", "lsmlat", "lsmlon",), 
+                                    datatype=np.float64,
+                                    dimensions=("nlevsoi", "lsmlat", "lsmlon",),
                                     fill_value=1.e+30)
         thetas.setncatts({'long_name': u"Porosity",
                                 'units': u"vol/vol"})
+        # Mean Θs = -0.126 * %sand + 48.9  (Table 5, Θs in %)
+        # Divided by 100 to convert % → vol/vol fraction
         watsat                     = 0.489 - 0.00126*SAND
+        # S.D. Θs = -0.0730 * %clay + 7.73  (Table 5, Θs in %)
+        # Divided by 100 to convert % → vol/vol fraction
         watsat_std                 = (7.73-0.073*CLAY) / 100.0
         noise_watsat               = np.random.normal(loc=0.0, scale=watsat_std, size=pct_sand.shape)
         perturbed_watsat           = watsat + noise_watsat
@@ -205,13 +237,15 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
 
         # Shape (b) parameter
         shape_param = dst.createVariable("SHAPE_PARAM",
-                                    datatype=np.float64, 
-                                    dimensions=("nlevsoi", "lsmlat", "lsmlon",), 
+                                    datatype=np.float64,
+                                    dimensions=("nlevsoi", "lsmlat", "lsmlon",),
                                     fill_value=1.e+30)
         shape_param.setncatts({'long_name': u"Shape (b) parameter",
                                 'units': u"unitless"})
+        # Mean b = 0.159 * %clay + 2.91  (Table 5)
         bsw                              = 2.91 + 0.159*CLAY
-        bsw_std                          = 0.0500 * CLAY + 1.34 
+        # S.D. b = 0.0500 * %clay + 1.34  (Table 5)
+        bsw_std                          = 0.0500 * CLAY + 1.34
         noise_bsw                        = np.random.normal(loc=0.0, scale=bsw_std, size=pct_clay.shape)
         perturbed_bsw                    = bsw + noise_bsw
         perturbed_bsw[perturbed_bsw < 0] = 0
@@ -219,11 +253,15 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
 
         # Saturated hydraulic conductivity
         ks = dst.createVariable("KSAT",
-                                datatype=np.float64, 
-                                dimensions=("nlevsoi", "lsmlat", "lsmlon",), 
+                                datatype=np.float64,
+                                dimensions=("nlevsoi", "lsmlat", "lsmlon",),
                                 fill_value=1.e+30)
         ks.setncatts({'long_name': u"Sat. hydraulic conductivity", 'units': u"mm/s"})
+        # Mean log Ks = 0.0153 * %sand - 0.884  (Table 5, Ks in inches/hour)
+        # Factor 0.0070556 converts inches/hour → mm/s (1 in/hr = 25.4/3600 mm/s)
         xksat                    = 0.0070556 *( 10.**(-0.884+0.0153*SAND))
+        # S.D. log Ks = 0.00321 * %silt + 0.459  (Table 5)
+        # %silt = 100 - %sand - %clay  (since sand + silt + clay = 100 %)
         xksat_std                = 0.459 + 0.00321*(100-(SAND+CLAY))
         noise_xksat              = np.random.normal(loc=0.0, scale=xksat_std, size=pct_sand.shape)
         perturbed_log_xksat      = np.log10(xksat) + noise_xksat
