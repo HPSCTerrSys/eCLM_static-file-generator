@@ -76,10 +76,7 @@ for var in GRIDNAME ACCOUNT PARTITION; do
     fi
 done
 
-if [[ -z "${CSMDATA:-}" ]]; then
-    echo "Error: CSMDATA environment variable must be set"
-    exit 1
-fi
+CSMDATA="${CSMDATA:-/p/largedata2/detectdata/CentralDB/projects/z04}"
 
 # --- Validate grid-type-specific arguments ---
 case "$GRID_TYPE" in
@@ -106,6 +103,8 @@ case "$GRID_TYPE" in
         usage
         ;;
 esac
+
+source "$BASEDIR/jsc.2024_Intel.sh"
 
 CDATE="$(date +%y%m%d)"
 
