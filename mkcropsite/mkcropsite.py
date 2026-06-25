@@ -18,13 +18,22 @@ Usage:
     python mkcropsite.py <surfdata.nc> --list-crops
 """
 
+import datetime
+import getpass
 import os
 import sys
 import argparse
 import shutil
+import warnings
 
 import numpy as np
 from netCDF4 import Dataset
+
+try:
+    import git
+    _GIT_AVAILABLE = True
+except ImportError:
+    _GIT_AVAILABLE = False
 
 
 # ---------------------------------------------------------------------------
@@ -268,6 +277,49 @@ Examples:
         pct_cft = nc.variables["PCT_CFT"]
         pct_cft[:] = 0.0
         pct_cft[cft_pos, 0, 0] = 100.0
+
+        # 4. Provenance attributes
+        timestamp = datetime.datetime.now(datetime.timezone.utc).strftime(
+            "%Y-%m-%d %H:%M:%S UTC"
+        )
+        cmd = " ".join(sys.argv)
+        new_entry = f"{timestamp}: {cmd}"
+        old_history = getattr(nc, "history", "")
+        nc.history = (new_entry + "\n" + old_history).strip()
+
+        nc.setncattr("created_by", getpass.getuser())
+        nc.setncattr("created_on_date",
+                     datetime.datetime.today().strftime("%Y-%m-%d"))
+        nc.setncattr("created_with_script", os.path.basename(sys.argv[0]))
+
+        if not _GIT_AVAILABLE:
+            warnings.warn("`import git` not available.", UserWarning)
+            nc.setncattr("git-repository",
+                         "unknown (gitpython not installed)")
+            nc.setncattr("git-hash", "unknown (gitpython not installed)")
+        else:
+            try:
+                repo = git.Repo(search_parent_directories=True)
+                try:
+                    repo_url = repo.remotes.origin.url
+                except AttributeError:
+                    repo_url = "unknown (no remote 'origin')"
+                nc.setncattr("git-repository", repo_url)
+                if len(repo.git.ls_files(m=True)) > 0:
+                    warnings.warn(
+                        "Dirty worktree in git repository! "
+                        "Check `git status`",
+                        UserWarning,
+                    )
+                    nc.setncattr("git-hash (dirty worktree)",
+                                 repo.head.object.hexsha[:10])
+                else:
+                    nc.setncattr("git-hash", repo.head.object.hexsha[:10])
+            except git.InvalidGitRepositoryError:
+                warnings.warn("Not inside a git repository.", UserWarning)
+                nc.setncattr("git-repository",
+                             "unknown (not a git repository)")
+                nc.setncattr("git-hash", "unknown (not a git repository)")
 
     # ------------------------------------------------------------------
     # Summary
