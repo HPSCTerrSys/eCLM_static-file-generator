@@ -10,14 +10,35 @@ Output sections:
 
 Usage:
     compare_params.py FILE_A.nc FILE_B.nc
+    compare_params.py FILE_A.nc FILE_B.nc --pft 43
 """
 
 import sys
+import argparse
 import numpy as np
 import netCDF4 as nc
 
 
-def compare(path_a: str, path_b: str) -> None:
+def var_label(ds, v: str) -> str:
+    """Return 'varname  [long_name: ..., units: ..., coordinates: ...]'."""
+    var = ds.variables[v]
+    parts = []
+    for attr in ("long_name", "units", "coordinates"):
+        val = getattr(var, attr, None)
+        if val is not None:
+            parts.append(f"{attr}: {val}")
+    if parts:
+        return f"{v}  [{', '.join(parts)}]"
+    return v
+
+
+def pft_axis(ds, v: str):
+    """Return the axis index of the 'pft' dimension, or None."""
+    dims = ds.variables[v].dimensions
+    return dims.index("pft") if "pft" in dims else None
+
+
+def compare(path_a: str, path_b: str, pft_filter=None) -> None:
     ds_a = nc.Dataset(path_a)
     ds_b = nc.Dataset(path_b)
 
@@ -26,6 +47,9 @@ def compare(path_a: str, path_b: str) -> None:
 
     label_a = path_a
     label_b = path_b
+
+    if pft_filter is not None:
+        print(f"(Filtering to PFT index {pft_filter})")
 
     # ------------------------------------------------------------------
     # 1. Variables only in one file
@@ -36,14 +60,14 @@ def compare(path_a: str, path_b: str) -> None:
     if only_a:
         print(f"\nOnly in {label_a}  ({len(only_a)}):")
         for v in only_a:
-            print(f"  {v}")
+            print(f"  {var_label(ds_a, v)}")
     else:
         print(f"\nNo variables only in {label_a}")
 
     if only_b:
         print(f"\nOnly in {label_b}  ({len(only_b)}):")
         for v in only_b:
-            print(f"  {v}")
+            print(f"  {var_label(ds_b, v)}")
     else:
         print(f"\nNo variables only in {label_b}")
 
@@ -56,10 +80,14 @@ def compare(path_a: str, path_b: str) -> None:
         raw_a = ds_a[v][:]
         raw_b = ds_b[v][:]
 
+        ax = pft_axis(ds_a, v)
+
         # --- char arrays (e.g. pftname) ---
         if raw_a.dtype.kind in ("S", "U") or raw_a.dtype == object:
             rows = []
             for i in range(len(raw_a)):
+                if pft_filter is not None and i != pft_filter:
+                    continue
                 sa = bytes(raw_a[i]).rstrip(b" \x00").decode("utf-8", errors="replace")
                 sb = bytes(raw_b[i]).rstrip(b" \x00").decode("utf-8", errors="replace")
                 if sa != sb:
@@ -83,10 +111,13 @@ def compare(path_a: str, path_b: str) -> None:
 
         rows = []
         for idx in zip(*np.where(different)):
+            if pft_filter is not None and ax is not None and idx[ax] != pft_filter:
+                continue
             va = fa[idx] if fa.ndim > 1 else fa[idx[0]]
             vb = fb[idx] if fb.ndim > 1 else fb[idx[0]]
             rows.append((idx, va, vb))
-        diffs[v] = rows
+        if rows:
+            diffs[v] = rows
 
     # ------------------------------------------------------------------
     # 3. Report differences
@@ -96,7 +127,7 @@ def compare(path_a: str, path_b: str) -> None:
     else:
         print(f"\nDifferences in shared variables  ({len(diffs)} variable(s)):")
         for v, rows in diffs.items():
-            print(f"\n  {v}  ({len(rows)} element(s))")
+            print(f"\n  {var_label(ds_a, v)}  ({len(rows)} element(s))")
             for idx, va, vb in rows:
                 idx_str = ",".join(str(i) for i in idx)
                 if isinstance(va, str):
@@ -112,10 +143,16 @@ def compare(path_a: str, path_b: str) -> None:
 
 
 def main() -> None:
-    if len(sys.argv) != 3:
-        print(f"Usage: {sys.argv[0]} FILE_A.nc FILE_B.nc", file=sys.stderr)
-        sys.exit(1)
-    compare(sys.argv[1], sys.argv[2])
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("file_a", metavar="FILE_A.nc")
+    parser.add_argument("file_b", metavar="FILE_B.nc")
+    parser.add_argument("--pft", type=int, metavar="N",
+                        help="Only show differences for PFT index N (0-based)")
+    args = parser.parse_args()
+    compare(args.file_a, args.file_b, pft_filter=args.pft)
 
 
 if __name__ == "__main__":
