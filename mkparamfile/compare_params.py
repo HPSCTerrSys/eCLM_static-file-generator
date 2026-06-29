@@ -11,6 +11,8 @@ Output sections:
 Usage:
     compare_params.py FILE_A.nc FILE_B.nc
     compare_params.py FILE_A.nc FILE_B.nc --pft 43
+    compare_params.py FILE_A.nc FILE_B.nc --verbose
+    compare_params.py FILE_A.nc FILE_B.nc --summary
 """
 
 import argparse
@@ -196,11 +198,38 @@ def idx_label(idx: tuple, ax) -> str:
     return idx_str
 
 
+def print_var_values(ds, v: str, pft_filter=None) -> None:
+    """Print all (filtered) element values of variable v in ds."""
+    raw = ds[v][:]
+    ax = pft_axis(ds, v)
+
+    # --- char arrays ---
+    if raw.dtype.kind in ("S", "U") or raw.dtype == object:
+        for i in range(len(raw)):
+            if pft_filter is not None and i != pft_filter:
+                continue
+            s = bytes(raw[i]).rstrip(b" \x00").decode("utf-8", errors="replace")
+            print(f"    [{idx_label((i,), ax)}]  '{s}'")
+        return
+
+    # --- numeric arrays ---
+    try:
+        fa = np.ma.filled(raw.astype(float), np.nan)
+    except Exception:
+        return
+    for idx in np.ndindex(fa.shape):
+        if pft_filter is not None and ax is not None and idx[ax] != pft_filter:
+            continue
+        val = fa[idx]
+        print(f"    [{idx_label(idx, ax)}]  {val:.8g}")
+
+
 # ---------------------------------------------------------------------------
 # Core comparison
 # ---------------------------------------------------------------------------
 
-def compare(path_a: str, path_b: str, pft_filter=None) -> None:
+def compare(path_a: str, path_b: str, pft_filter=None,
+            verbose: bool = False, summary: bool = False) -> None:
     ds_a = nc.Dataset(path_a)
     ds_b = nc.Dataset(path_b)
 
@@ -220,6 +249,8 @@ def compare(path_a: str, path_b: str, pft_filter=None) -> None:
         print(f"\nOnly in {path_a}  ({len(only_a)}):")
         for v in only_a:
             print(f"  {var_label(ds_a, v)}")
+            if verbose:
+                print_var_values(ds_a, v, pft_filter)
     else:
         print(f"\nNo variables only in {path_a}")
 
@@ -227,6 +258,8 @@ def compare(path_a: str, path_b: str, pft_filter=None) -> None:
         print(f"\nOnly in {path_b}  ({len(only_b)}):")
         for v in only_b:
             print(f"  {var_label(ds_b, v)}")
+            if verbose:
+                print_var_values(ds_b, v, pft_filter)
     else:
         print(f"\nNo variables only in {path_b}")
 
@@ -288,12 +321,13 @@ def compare(path_a: str, path_b: str, pft_filter=None) -> None:
         for v, rows in diffs.items():
             ax = pft_axis(ds_a, v)
             print(f"\n  {var_label(ds_a, v)}  ({len(rows)} element(s))")
-            for idx, va, vb in rows:
-                label = idx_label(idx, ax)
-                if isinstance(va, str):
-                    print(f"    [{label}]  '{va}'  →  '{vb}'")
-                else:
-                    print(f"    [{label}]  {va:.8g}  →  {vb:.8g}")
+            if not summary:
+                for idx, va, vb in rows:
+                    label = idx_label(idx, ax)
+                    if isinstance(va, str):
+                        print(f"    [{label}]  '{va}'  →  '{vb}'")
+                    else:
+                        print(f"    [{label}]  {va:.8g}  →  {vb:.8g}")
 
     # ------------------------------------------------------------------
     # Summary
@@ -311,8 +345,14 @@ def main() -> None:
     parser.add_argument("file_b", metavar="FILE_B.nc")
     parser.add_argument("--pft", type=int, metavar="N",
                         help="Only show differences for PFT index N (0-based)")
+    parser.add_argument("--verbose", action="store_true",
+                        help="Also print element values for variables only in one file")
+    parser.add_argument("--summary", action="store_true",
+                        help="Print variable headers and counts but suppress element rows "
+                             "in the differences section")
     args = parser.parse_args()
-    compare(args.file_a, args.file_b, pft_filter=args.pft)
+    compare(args.file_a, args.file_b, pft_filter=args.pft,
+            verbose=args.verbose, summary=args.summary)
 
 
 if __name__ == "__main__":
