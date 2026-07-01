@@ -271,7 +271,7 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
         bsw_std                          = 0.0500 * CLAY + 1.34
         noise_bsw                        = np.random.normal(loc=0.0, scale=bsw_std, size=pct_clay.shape)
         perturbed_bsw                    = bsw + noise_bsw
-        perturbed_bsw[perturbed_bsw < 0] = 0
+        perturbed_bsw[perturbed_bsw < 0.5] = 0.5
         dst.variables[f"SHAPE_PARAM{suffix}"][:dim_lvl] = perturbed_bsw
         if adj:
             dst.variables[f"SHAPE_PARAM{suffix}"][dim_lvl:] = perturbed_bsw[-1:]
