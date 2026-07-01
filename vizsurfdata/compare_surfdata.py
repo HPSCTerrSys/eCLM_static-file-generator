@@ -26,10 +26,12 @@ from netCDF4 import Dataset
 # Import shared constants and utilities from visualize_surfdata
 from visualize_surfdata import (
     NATPFT_NAMES, CFT_NAMES, URBAN_TYPES, MONTH_NAMES, SOIL_DEPTHS,
+    HYD_PARAM_SPECS,
     get_scalar_value, get_1d_array, fig_to_base64,
     create_site_location_figure,
     detect_grid_type, get_field_2d, plot_map, plot_diff_map, plot_map_grid,
     create_domain_map_figure, plot_monthly_timeseries_regional,
+    detect_soil_hydraulic_params,
 )
 
 
@@ -1292,6 +1294,161 @@ Examples:
                         'Comparison of soil texture (sand, clay) and organic matter content across depth layers.'),
         'figures': section5_figures
     })
+
+    # =========================================================================
+    # SECTION 5b: Soil Hydraulic Parameters Comparison (optional)
+    # =========================================================================
+    hyd_info1 = detect_soil_hydraulic_params(nc1)
+    hyd_info2 = detect_soil_hydraulic_params(nc2)
+
+    if hyd_info1 is not None or hyd_info2 is not None:
+        print("Creating Section 5b: Soil Hydraulic Parameters Comparison...")
+        section5b_figures = []
+
+        # Use metadata from whichever file has the parameters; prefer nc1
+        hyd_info = hyd_info1 or hyd_info2
+        suffix = hyd_info['suffix']
+        n_lev  = hyd_info['n_lev']
+        depths = np.array(SOIL_DEPTHS[:n_lev])
+        suffix_note = (f'_adj variant \u2013 first {n_lev} soil layers'
+                       if suffix == '_adj' else f'{n_lev} soil layers')
+
+        if is_regional:
+            for base, display, units_str in HYD_PARAM_SPECS:
+                vname = f'{base}{suffix}'
+                has1 = vname in nc1.variables
+                has2 = vname in nc2.variables
+                if not has1 and not has2:
+                    continue
+
+                if has1:
+                    raw1 = np.array(nc1.variables[vname][:n_lev], dtype=float)
+                    if hasattr(raw1, 'mask'):
+                        raw1 = np.ma.filled(raw1, np.nan)
+                    prof1 = np.array([
+                        float(np.nanmean(np.where(land_mask, raw1[l], np.nan)))
+                        for l in range(n_lev)
+                    ])
+                else:
+                    raw1  = None
+                    prof1 = np.full(n_lev, np.nan)
+
+                if has2:
+                    raw2 = np.array(nc2.variables[vname][:n_lev], dtype=float)
+                    if hasattr(raw2, 'mask'):
+                        raw2 = np.ma.filled(raw2, np.nan)
+                    prof2 = np.array([
+                        float(np.nanmean(np.where(land_mask, raw2[l], np.nan)))
+                        for l in range(n_lev)
+                    ])
+                else:
+                    raw2  = None
+                    prof2 = np.full(n_lev, np.nan)
+
+                fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+                plot_difference_profile(axes[0], depths, prof1, prof2,
+                                        f'{display} (domain mean)', units_str,
+                                        label1, label2)
+                if raw1 is not None and raw2 is not None:
+                    diff_dm = np.nanmean(raw2, axis=0) - np.nanmean(raw1, axis=0)
+                    plot_diff_map(axes[1], diff_dm, lons, lats,
+                                  f'\u0394 {display} (depth mean)', units_str)
+                else:
+                    axes[1].axis('off')
+                    missing = label1 if not has1 else label2
+                    axes[1].text(0.5, 0.5, f'Variable absent in {missing}',
+                                 ha='center', va='center', transform=axes[1].transAxes,
+                                 fontsize=12)
+                fig.suptitle(f'{display} \u2013 Comparison ({label2} \u2212 {label1})',
+                             fontsize=13, fontweight='bold')
+                plt.tight_layout()
+                safe_name = base.lower()
+                pdf_path = os.path.join(pdf_dir, f'05h_{safe_name}_comparison.pdf')
+                fig.savefig(pdf_path, bbox_inches='tight')
+                section5b_figures.append({
+                    'pdf_name': os.path.basename(pdf_path),
+                    'caption': (f'{display}: domain-mean profile comparison and depth-mean '
+                                f'difference map ({label2} \u2212 {label1}).'),
+                    'base64': fig_to_base64(fig)
+                })
+                plt.close(fig)
+
+        else:
+            # Single-site: combined profile comparison figure + per-layer table
+            available_params = []
+            for base, display, units_str in HYD_PARAM_SPECS:
+                vname = f'{base}{suffix}'
+                has1 = vname in nc1.variables
+                has2 = vname in nc2.variables
+                if not has1 and not has2:
+                    continue
+                prof1 = (get_1d_array(nc1.variables[vname])[:n_lev]
+                         if has1 else np.full(n_lev, np.nan))
+                prof2 = (get_1d_array(nc2.variables[vname])[:n_lev]
+                         if has2 else np.full(n_lev, np.nan))
+                available_params.append((base, display, units_str, prof1, prof2))
+
+            if available_params:
+                n_p = len(available_params)
+                fig, axes = plt.subplots(1, n_p, figsize=(n_p * 4, 7), squeeze=False)
+                for idx, (base, display, units_str, prof1, prof2) in enumerate(available_params):
+                    plot_difference_profile(axes[0][idx], depths, prof1, prof2,
+                                            display, units_str, label1, label2)
+                fig.suptitle('Soil Hydraulic Parameters Comparison',
+                             fontsize=13, fontweight='bold')
+                plt.tight_layout()
+                pdf_path = os.path.join(pdf_dir, '05h_soil_hydraulic_profiles.pdf')
+                fig.savefig(pdf_path, bbox_inches='tight')
+                section5b_figures.append({
+                    'pdf_name': os.path.basename(pdf_path),
+                    'caption': (f'Vertical profile comparison of soil hydraulic parameters '
+                                f'({suffix_note}). Shaded area shows the difference.'),
+                    'base64': fig_to_base64(fig)
+                })
+                plt.close(fig)
+
+                # Per-layer difference table (rows with non-trivial differences)
+                tbl_data = []
+                for base, display, units_str, prof1, prof2 in available_params:
+                    for i, d in enumerate(depths):
+                        v1 = float(prof1[i]) if np.isfinite(prof1[i]) else 0.0
+                        v2 = float(prof2[i]) if np.isfinite(prof2[i]) else 0.0
+                        if abs(v2 - v1) > 1e-10:
+                            tbl_data.append((f'{display} @ {d:.2f}m', v1, v2, units_str))
+
+                fig, ax = plt.subplots(figsize=(16, max(5, len(tbl_data[:20]) * 0.6 + 2)))
+                if tbl_data:
+                    create_comparison_table(ax, tbl_data[:20],
+                                            'Soil Hydraulic Parameter Differences by Layer',
+                                            label1, label2)
+                else:
+                    ax.text(0.5, 0.5,
+                            'No significant differences in soil hydraulic parameters',
+                            ha='center', va='center', transform=ax.transAxes, fontsize=14)
+                    ax.axis('off')
+                plt.tight_layout()
+                pdf_path = os.path.join(pdf_dir, '05h_soil_hydraulic_table.pdf')
+                fig.savefig(pdf_path, bbox_inches='tight')
+                section5b_figures.append({
+                    'pdf_name': os.path.basename(pdf_path),
+                    'caption': 'Layer-by-layer comparison table for soil hydraulic parameters.',
+                    'base64': fig_to_base64(fig)
+                })
+                plt.close(fig)
+
+        if section5b_figures:
+            figures_data.append({
+                'id': 'soil-hydraulic-comparison',
+                'title': 'Soil Hydraulic Parameters',
+                'description': (
+                    f'Comparison of soil hydraulic parameters '
+                    f'(PSIS_SAT{suffix}, THETAS{suffix}, SHAPE_PARAM{suffix}, KSAT{suffix}). '
+                    'Derived from perturbed soil textures via Clapp-Hornberger pedotransfer '
+                    'functions; present only in ensemble members generated by '
+                    'soil_params_perturb.py.'
+                ),
+                'figures': section5b_figures
+            })
 
     # =========================================================================
     # SECTION 6: Monthly LAI Comparison

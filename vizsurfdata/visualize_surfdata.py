@@ -185,6 +185,15 @@ MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
 # Soil layer depths (approximate centers in meters)
 SOIL_DEPTHS = [0.01, 0.04, 0.09, 0.16, 0.26, 0.40, 0.59, 0.83, 1.14, 1.56]
 
+# Soil hydraulic parameter specs (added by soil_params_perturb.py)
+# Each entry: (base_varname, display_name, units)
+HYD_PARAM_SPECS = [
+    ('PSIS_SAT',    'Sat. Matric Potential',       'mmH\u2082O'),
+    ('THETAS',      'Porosity',                     'vol/vol'),
+    ('SHAPE_PARAM', 'Shape (b) Parameter',          'unitless'),
+    ('KSAT',        'Sat. Hydraulic Conductivity',  'mm/s'),
+]
+
 
 def get_scalar_value(var):
     """Extract a scalar value from a potentially multi-dimensional variable."""
@@ -209,6 +218,27 @@ def get_1d_array(var):
 def detect_grid_type(nc):
     """Return True if the file contains a regional (multi-cell) grid."""
     return nc.dimensions['lsmlat'].size > 1 or nc.dimensions['lsmlon'].size > 1
+
+
+def detect_soil_hydraulic_params(nc):
+    """Check for soil hydraulic parameters added by soil_params_perturb.py.
+
+    Tries the ``_adj`` suffix (written on the nlevgrnd=25 grid) first, then
+    the plain suffix (written on the nlevsoi grid).  For the ``_adj`` variant,
+    only the first ``nlevsoi`` layers contain independent data; the remaining
+    layers are fills and are not shown.
+
+    Returns
+    -------
+    dict with keys ``'suffix'`` (``'_adj'`` or ``''``) and ``'n_lev'``
+    (number of meaningful soil layers to display), or ``None`` when no
+    hydraulic parameters are found.
+    """
+    base_vars = [spec[0] for spec in HYD_PARAM_SPECS]
+    for suffix in ['_adj', '']:
+        if any(f'{v}{suffix}' in nc.variables for v in base_vars):
+            return {'suffix': suffix, 'n_lev': nc.dimensions['nlevsoi'].size}
+    return None
 
 
 # =============================================================================
@@ -1472,6 +1502,125 @@ def main(nc_file):
         'description': 'Soil texture and organic matter content profiles. Critical inputs for soil hydrology and biogeochemistry.',
         'figures': section5_figures
     })
+
+    # =========================================================================
+    # SECTION 5b: Soil Hydraulic Parameters (optional)
+    # =========================================================================
+    hyd_info = detect_soil_hydraulic_params(nc)
+    if hyd_info is not None:
+        print("Creating Section 5b: Soil Hydraulic Parameters...")
+        section5b_figures = []
+        suffix = hyd_info['suffix']
+        n_lev  = hyd_info['n_lev']
+        depths = SOIL_DEPTHS[:n_lev]
+
+        # Collect available parameter arrays
+        hyd_data = {}  # base_name -> (array, display_name, units_str)
+        for base, display, units_str in HYD_PARAM_SPECS:
+            vname = f'{base}{suffix}'
+            if vname in nc.variables:
+                raw = np.array(nc.variables[vname][:n_lev], dtype=float)
+                if hasattr(raw, 'mask'):
+                    raw = np.ma.filled(raw, np.nan)
+                hyd_data[base] = (raw, display, units_str)
+
+        if hyd_data:
+            colors = ['#4299e1', '#ed8936', '#48bb78', '#9f7aea']
+            n_params = len(hyd_data)
+            suffix_note = (f'_adj variant \u2013 first {n_lev} soil layers'
+                           if suffix == '_adj' else f'{n_lev} soil layers')
+
+            if is_regional:
+                def _hyd_domain_mean(arr3d):
+                    out = []
+                    for l in range(arr3d.shape[0]):
+                        d = arr3d[l]
+                        vals = d[land_mask & np.isfinite(d)]
+                        out.append(float(np.nanmean(vals)) if vals.size else np.nan)
+                    return np.array(out)
+
+                # Domain-mean vertical profiles
+                fig, axes = plt.subplots(1, n_params,
+                                         figsize=(n_params * 3.8, 6), squeeze=False)
+                for idx, (base, (arr3d, display, units_str)) in enumerate(hyd_data.items()):
+                    profile = _hyd_domain_mean(arr3d)
+                    ax = axes[0][idx]
+                    ax.barh(range(n_lev), profile,
+                            color=colors[idx % len(colors)],
+                            edgecolor='#2d3748', alpha=0.8)
+                    ax.set_yticks(range(n_lev))
+                    ax.set_yticklabels([f'{d:.2f}m' for d in depths])
+                    ax.invert_yaxis()
+                    ax.set_xlabel(f'[{units_str}]')
+                    ax.set_title(f'{display}\n(domain mean)',
+                                 fontsize=10, fontweight='bold')
+                    ax.grid(axis='x', alpha=0.3)
+                fig.suptitle('Soil Hydraulic Parameters \u2013 Domain Mean Profiles',
+                             fontsize=14, fontweight='bold')
+                plt.tight_layout()
+                pdf_path = os.path.join(pdf_dir, '05h_soil_hydraulic_profiles.pdf')
+                fig.savefig(pdf_path, bbox_inches='tight')
+                section5b_figures.append({
+                    'pdf_name': os.path.basename(pdf_path),
+                    'caption': f'Domain-mean vertical profiles of soil hydraulic parameters ({suffix_note}).',
+                    'base64': fig_to_base64(fig)
+                })
+                plt.close(fig)
+
+                # Depth-mean spatial maps
+                map_data, map_titles, map_units_list = [], [], []
+                cmaps = ['Blues', 'Purples', 'Oranges', 'Greens']
+                for base, (arr3d, display, units_str) in hyd_data.items():
+                    map_data.append(np.nanmean(arr3d, axis=0))
+                    map_titles.append(f'{display}\n(depth mean)')
+                    map_units_list.append(units_str)
+                fig = plot_map_grid(
+                    map_data, map_titles, lons, lats,
+                    'Soil Hydraulic Parameters \u2013 Depth-Averaged Spatial Distribution',
+                    units=map_units_list,
+                    cmap=[cmaps[i % len(cmaps)] for i in range(len(map_data))],
+                    ncols=min(n_params, 4)
+                )
+                pdf_path = os.path.join(pdf_dir, '05h_soil_hydraulic_maps.pdf')
+                fig.savefig(pdf_path, bbox_inches='tight')
+                section5b_figures.append({
+                    'pdf_name': os.path.basename(pdf_path),
+                    'caption': 'Depth-averaged spatial maps of soil hydraulic parameters.',
+                    'base64': fig_to_base64(fig)
+                })
+                plt.close(fig)
+
+            else:
+                # Single-site: vertical profile plots
+                fig, axes = plt.subplots(1, n_params,
+                                         figsize=(n_params * 3.8, 6), squeeze=False)
+                for idx, (base, (arr, display, units_str)) in enumerate(hyd_data.items()):
+                    plot_soil_profile(axes[0][idx], depths, arr.squeeze(),
+                                      display, units_str,
+                                      color=colors[idx % len(colors)])
+                fig.suptitle('Soil Hydraulic Parameters by Depth',
+                             fontsize=14, fontweight='bold')
+                plt.tight_layout()
+                pdf_path = os.path.join(pdf_dir, '05h_soil_hydraulic.pdf')
+                fig.savefig(pdf_path, bbox_inches='tight')
+                section5b_figures.append({
+                    'pdf_name': os.path.basename(pdf_path),
+                    'caption': f'Vertical profiles of soil hydraulic parameters ({suffix_note}).',
+                    'base64': fig_to_base64(fig)
+                })
+                plt.close(fig)
+
+        figures_data.append({
+            'id': 'soil-hydraulic',
+            'title': 'Soil Hydraulic Parameters',
+            'description': (
+                'Soil hydraulic parameters derived from perturbed soil textures via '
+                'Clapp-Hornberger pedotransfer functions '
+                f'(PSIS_SAT{suffix}, THETAS{suffix}, SHAPE_PARAM{suffix}, KSAT{suffix}). '
+                'Present only in ensemble members generated by soil_params_perturb.py.'
+            ),
+            'figures': section5b_figures
+        })
 
     # =========================================================================
     # SECTION 6: Monthly LAI and Vegetation Parameters
