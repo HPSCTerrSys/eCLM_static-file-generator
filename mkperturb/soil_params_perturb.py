@@ -56,8 +56,55 @@ import netCDF4 as nc
 
 from utils import rnd_state_serialize, rnd_state_deserialize, copy_attr_dim
 
+# Depth of CLM5 nlevsoi layer centres [m]  (Oleson et al. 2013, Table 2.3.1)
+_SOIL_DEPTHS = np.array([0.01, 0.04, 0.09, 0.16, 0.26, 0.40, 0.59, 0.83, 1.14, 1.56])
 
-def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, noise_range=20.0, adj=True):
+_DEFAULT_CORR_LENGTH = 0.0   # exponential correlation length [m]; 0 = independent layers
+
+
+def correlated_noise(std_field, corr_length=_DEFAULT_CORR_LENGTH,
+                     depths=_SOIL_DEPTHS):
+    """
+    Draw noise with shape std_field.shape that has exponential vertical
+    correlation between soil layers.
+
+    Parameters
+    ----------
+    std_field : ndarray, shape (n_lev, lsmlat, lsmlon)
+        Per-layer, per-cell standard deviations.
+    corr_length : float
+        Exponential correlation length in metres.  0 means independent layers.
+    depths : 1-D array, length n_lev
+        Layer centre depths in metres.
+
+    Returns
+    -------
+    ndarray, same shape as std_field
+        Correlated noise with the prescribed per-cell standard deviations.
+    """
+    if corr_length <= 0:
+        return std_field * np.random.normal(size=std_field.shape)
+
+    n_lev = len(depths)
+    # Exponential correlation matrix  C[i,j] = exp(-|z_i - z_j| / L)
+    C = np.exp(-np.abs(depths[:, None] - depths[None, :]) / corr_length)
+    L_chol = np.linalg.cholesky(C)          # lower-triangular factor
+
+    spatial_shape = std_field.shape[1:]      # (lsmlat, lsmlon)
+    n_cells = int(np.prod(spatial_shape))
+
+    # Independent standard normal draws
+    eps = np.random.normal(size=(n_lev, n_cells))
+    # Correlate across layers:  (n_lev, n_lev) @ (n_lev, n_cells) → (n_lev, n_cells)
+    corr_eps = L_chol @ eps
+    corr_noise = corr_eps.reshape(n_lev, *spatial_shape)
+
+    return std_field * corr_noise
+
+
+def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0,
+                                          noise_range=20.0, adj=True,
+                                          corr_length=_DEFAULT_CORR_LENGTH):
     """
     Perturb soil texture and hydraulic properties for one ensemble member.
 
@@ -97,6 +144,11 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
         If False, write without suffix (PSIS_SAT, THETAS, SHAPE_PARAM, KSAT)
         on the nlevsoi grid only. Use with
         ``soil_hyd_inparm_from_file = .true.`` in lnd_in.
+    corr_length : float, optional
+        Exponential vertical correlation length for hydraulic parameter
+        perturbations in metres (default: 0, independent layers).  Setting
+        e.g. 0.2 means that layers ~0.2 m apart receive similar noise draws,
+        reducing isolated single-layer anomalies.
     """
     sorig = input_file
     stem = os.path.splitext(os.path.basename(sorig))[0]
@@ -232,7 +284,7 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
         # The clay slope (0.0012, p=0.355) is retained from Table 4 but is
         # not significant and has negligible effect.
         sucsat_std                   = 0.72 + 0.0012*CLAY
-        noise_sucsat                 = np.random.normal(loc=0.0, scale=sucsat_std, size=pct_sand.shape)
+        noise_sucsat                 = correlated_noise(sucsat_std, corr_length)
         perturbed_log_sucsat         = np.log10(sucsat) + noise_sucsat
         back_transformed_sucsat      = np.clip(np.power(10, perturbed_log_sucsat), 0, 1000)
         dst.variables[f"PSIS_SAT{suffix}"][:dim_lvl] = back_transformed_sucsat
@@ -252,7 +304,7 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
         # S.D. Θs = -0.0730 * %clay + 7.73  (Table 5, Θs in %)
         # Divided by 100 to convert % → vol/vol fraction
         watsat_std                 = (7.73-0.073*CLAY) / 100.0
-        noise_watsat               = np.random.normal(loc=0.0, scale=watsat_std, size=pct_sand.shape)
+        noise_watsat               = correlated_noise(watsat_std, corr_length)
         perturbed_watsat           = watsat + noise_watsat
         dst.variables[f"THETAS{suffix}"][:dim_lvl] = perturbed_watsat
         if adj:
@@ -269,7 +321,7 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
         bsw                              = 2.91 + 0.159*CLAY
         # S.D. b = 0.0500 * %clay + 1.34  (Table 5)
         bsw_std                          = 0.0500 * CLAY + 1.34
-        noise_bsw                        = np.random.normal(loc=0.0, scale=bsw_std, size=pct_clay.shape)
+        noise_bsw                        = correlated_noise(bsw_std, corr_length)
         perturbed_bsw                    = bsw + noise_bsw
         perturbed_bsw[perturbed_bsw < 0.5] = 0.5
         dst.variables[f"SHAPE_PARAM{suffix}"][:dim_lvl] = perturbed_bsw
@@ -288,7 +340,7 @@ def perturb_soil_textures_and_parameters(input_file, output_dir, iensemble=0, no
         # S.D. log Ks = 0.00321 * %silt + 0.459  (Table 5)
         # %silt = 100 - %sand - %clay  (since sand + silt + clay = 100 %)
         xksat_std                = 0.459 + 0.00321*(100-(SAND+CLAY))
-        noise_xksat              = np.random.normal(loc=0.0, scale=xksat_std, size=pct_sand.shape)
+        noise_xksat              = correlated_noise(xksat_std, corr_length)
         perturbed_log_xksat      = np.log10(xksat) + noise_xksat
         back_transformed_xksat   = np.power(10, perturbed_log_xksat)
         dst.variables[f"KSAT{suffix}"][:dim_lvl] = back_transformed_xksat
@@ -327,6 +379,13 @@ def main():
              "Default: write with _adj suffix on the nlevgrnd=25 grid, for use with "
              "soil_hyd_inparm_from_file_adj = .true.",
     )
+    parser.add_argument(
+        "--corr-length", type=float, default=_DEFAULT_CORR_LENGTH,
+        metavar="L",
+        help="Exponential vertical correlation length for hydraulic parameter "
+             "perturbations in metres (default: 0, independent layers). "
+             "Example: --corr-length 0.2 couples adjacent soil layers.",
+    )
     args = parser.parse_args()
 
     if args.state_file and os.path.isfile(args.state_file):
@@ -343,6 +402,7 @@ def main():
         perturb_soil_textures_and_parameters(
             args.input_file, args.output_dir, ens,
             noise_range=args.noise_range, adj=not args.no_adj,
+            corr_length=args.corr_length,
         )
         print(f"Ensemble member {ens + 1} perturbed and saved to output file.")
 
