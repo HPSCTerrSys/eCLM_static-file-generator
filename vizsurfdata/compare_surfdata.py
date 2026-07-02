@@ -1298,6 +1298,9 @@ Examples:
     # =========================================================================
     # SECTION 5b: Soil Hydraulic Parameters Comparison (optional)
     # =========================================================================
+    # Accumulator for summary section: list of (name, v1, v2, units)
+    summary_hyd_entries = []
+
     hyd_info1 = detect_soil_hydraulic_params(nc1)
     hyd_info2 = detect_soil_hydraulic_params(nc2)
 
@@ -1373,6 +1376,15 @@ Examples:
                 })
                 plt.close(fig)
 
+                # Accumulate per-layer values for the summary section
+                for i in range(n_lev):
+                    summary_hyd_entries.append((
+                        f'{display} @ {SOIL_DEPTHS[i]:.2f}m',
+                        float(prof1[i]) if np.isfinite(prof1[i]) else np.nan,
+                        float(prof2[i]) if np.isfinite(prof2[i]) else np.nan,
+                        units_str,
+                    ))
+
         else:
             # Single-site: combined profile comparison figure + per-layer table
             available_params = []
@@ -1387,6 +1399,14 @@ Examples:
                 prof2 = (get_1d_array(nc2.variables[vname])[:n_lev]
                          if has2 else np.full(n_lev, np.nan))
                 available_params.append((base, display, units_str, prof1, prof2))
+                # Accumulate per-layer values for the summary section
+                for i in range(n_lev):
+                    summary_hyd_entries.append((
+                        f'{display} @ {depths[i]:.2f}m',
+                        float(prof1[i]) if np.isfinite(prof1[i]) else np.nan,
+                        float(prof2[i]) if np.isfinite(prof2[i]) else np.nan,
+                        units_str,
+                    ))
 
             if available_params:
                 n_p = len(available_params)
@@ -1697,11 +1717,11 @@ Examples:
     print("Creating Section 8: Summary of Differences...")
     section8_figures = []
 
-    # Key variables compared: use domain means for regional, scalar values for single-site
+    # --- Scalar parameters ---
     summary_vars = ['AREA', 'FMAX', 'zbedrock', 'SLOPE', 'STD_ELEV',
                     'PCT_NATVEG', 'PCT_CROP', 'PCT_LAKE', 'PCT_WETLAND', 'PCT_GLACIER',
                     'SOIL_COLOR', 'peatf', 'gdp', 'LAKEDEPTH']
-    all_diffs = []
+    scalar_diffs = []
     for var in summary_vars:
         try:
             if is_regional:
@@ -1712,20 +1732,92 @@ Examples:
                 v2 = get_scalar_value(nc2.variables[var])
             diff = abs(v2 - v1)
             if diff > 0.001:
-                all_diffs.append((var, v1, v2, diff))
+                scalar_diffs.append((var, v1, v2, diff))
         except Exception:
             pass
 
+    # --- Soil texture diffs (sand1/clay1/org1 computed in Section 5) ---
+    n_soil_lev = len(sand1)
+    soil_texture_diffs = []
+    for i in range(n_soil_lev):
+        d = SOIL_DEPTHS[i]
+        for _name, _a1, _a2 in [
+            (f'Sand @ {d:.2f}m',    float(sand1[i]), float(sand2[i])),
+            (f'Clay @ {d:.2f}m',    float(clay1[i]), float(clay2[i])),
+            (f'Organic @ {d:.2f}m', float(org1[i]),  float(org2[i])),
+        ]:
+            if abs(_a2 - _a1) > 0.001:
+                soil_texture_diffs.append((_name, _a1, _a2, abs(_a2 - _a1)))
+
+    # --- Soil hydraulic diffs ---
+    # Structural difference: hydraulic params present in one file but not the other
+    hyd_only_in_1 = hyd_info1 is not None and hyd_info2 is None
+    hyd_only_in_2 = hyd_info1 is None and hyd_info2 is not None
+    hyd_structural_diff = hyd_only_in_1 or hyd_only_in_2
+
+    hyd_value_diffs = []
+    for _hname, _hv1, _hv2, _hunits in summary_hyd_entries:
+        _v1 = float(_hv1) if np.isfinite(_hv1) else 0.0
+        _v2 = float(_hv2) if np.isfinite(_hv2) else 0.0
+        if abs(_v2 - _v1) > 1e-10:
+            hyd_value_diffs.append((_hname, _v1, _v2, abs(_v2 - _v1)))
+
+    # Combined list for top-differences table (sorted by magnitude later)
+    all_diffs = scalar_diffs + soil_texture_diffs + hyd_value_diffs
+
+    # --- Category summary ---
+    land_changes = np.array(land_vals2) - np.array(land_vals1)
+    pft_diffs = pct_nat_pft2 - pct_nat_pft1
+
+    n_hyd_total = len(summary_hyd_entries)
+    n_soil_texture_total = 3 * n_soil_lev
+    # If structural diff, count all hyd entries as changed (they are categorically different)
+    n_hyd_changed = n_hyd_total if hyd_structural_diff else len(hyd_value_diffs)
+
+    cat_names = ['Scalar\nparams', 'Land\ncover', 'PFTs', 'Soil\ntexture']
+    cat_changed = [
+        len(scalar_diffs),
+        int(np.sum(np.abs(land_changes) > 0.01)),
+        int(np.sum(np.abs(pft_diffs) > 0.1)),
+        len(soil_texture_diffs),
+    ]
+    cat_total = [
+        len(summary_vars),
+        len(land_labels),
+        len(pft_diffs),
+        n_soil_texture_total,
+    ]
+    # Only include hydraulics category when at least one file has them
+    if n_hyd_total > 0 or hyd_structural_diff:
+        cat_names.append('Soil\nhydraulics')
+        cat_changed.append(n_hyd_changed)
+        cat_total.append(max(n_hyd_total, 1))  # avoid zero-width bar
+
     fig = plt.figure(figsize=(16, 12))
 
-    # Pie: changed vs unchanged
+    # Category breakdown bar chart (replaces the old approximate pie chart)
     ax1 = fig.add_subplot(2, 2, 1)
-    n_total = len(summary_vars) + len(pct_nat_pft1) + 30  # approximate
-    n_changed = len(all_diffs)
-    n_same = max(0, n_total - n_changed)
-    ax1.pie([n_same, n_changed], labels=['Unchanged', 'Changed'],
-            colors=['#48bb78', '#e53e3e'], autopct='%1.1f%%', startangle=90)
-    ax1.set_title('Overall Parameter Changes', fontsize=12, fontweight='bold')
+    y = np.arange(len(cat_names))
+    unchanged_counts = [max(0, t - c) for t, c in zip(cat_total, cat_changed)]
+    ax1.barh(y, unchanged_counts, color='#48bb78', label='Unchanged', edgecolor='#2d3748')
+    ax1.barh(y, cat_changed, left=unchanged_counts, color='#e53e3e', label='Changed',
+             edgecolor='#2d3748')
+    # Flag hydraulic structural difference prominently
+    if hyd_structural_diff and 'Soil\nhydraulics' in cat_names:
+        missing_lbl = label2 if hyd_only_in_1 else label1
+        hyd_idx = cat_names.index('Soil\nhydraulics')
+        ax1.annotate(
+            f'\u26a0 absent in {missing_lbl}',
+            xy=(cat_total[hyd_idx], hyd_idx),
+            xytext=(cat_total[hyd_idx] + 0.5, hyd_idx),
+            fontsize=8, color='#c05621', fontweight='bold', va='center',
+        )
+    ax1.set_yticks(y)
+    ax1.set_yticklabels(cat_names, fontsize=9)
+    ax1.set_xlabel('Number of parameters / layers')
+    ax1.set_title('Parameter Changes by Category', fontsize=12, fontweight='bold')
+    ax1.legend(loc='lower right', fontsize=8)
+    ax1.grid(axis='x', alpha=0.3)
 
     # Top differences table
     ax2 = fig.add_subplot(2, 2, 2)
@@ -1734,7 +1826,7 @@ Examples:
         sorted_diffs = sorted(all_diffs, key=lambda x: x[3], reverse=True)[:10]
         top_diff_data = [(name, v1, v2, 'various') for name, v1, v2, _ in sorted_diffs]
         create_comparison_table(ax2, top_diff_data,
-                                'Top Differences (domain mean)' if is_regional else 'Top 10 Scalar Differences',
+                                'Top Differences (domain mean)' if is_regional else 'Top 10 Differences',
                                 label1, label2)
     else:
         ax2.text(0.5, 0.5, 'No significant differences found',
@@ -1742,7 +1834,6 @@ Examples:
 
     # Land cover change summary
     ax3 = fig.add_subplot(2, 2, 3)
-    land_changes = np.array(land_vals2) - np.array(land_vals1)
     colors = [get_change_color(d, 0.01) for d in land_changes]
     ax3.barh(land_labels, land_changes, color=colors, edgecolor='#2d3748')
     ax3.axvline(x=0, color='black', linestyle='-', linewidth=0.5)
@@ -1752,7 +1843,6 @@ Examples:
 
     # PFT change summary
     ax4 = fig.add_subplot(2, 2, 4)
-    pft_diffs = pct_nat_pft2 - pct_nat_pft1
     significant_pft_changes = [(NATPFT_NAMES.get(i, f'PFT {i}')[:20], pft_diffs[i])
                                for i in range(len(pft_diffs)) if abs(pft_diffs[i]) > 0.1]
     if significant_pft_changes:
