@@ -186,12 +186,12 @@ MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
 SOIL_DEPTHS = [0.01, 0.04, 0.09, 0.16, 0.26, 0.40, 0.59, 0.83, 1.14, 1.56]
 
 # Soil hydraulic parameter specs (added by soil_params_perturb.py)
-# Each entry: (base_varname, display_name, units)
+# Each entry: (base_varname, display_name, units, log_scale)
 HYD_PARAM_SPECS = [
-    ('PSIS_SAT',    'Sat. Matric Potential',       'mmH\u2082O'),
-    ('THETAS',      'Porosity',                     'vol/vol'),
-    ('SHAPE_PARAM', 'Shape (b) Parameter',          'unitless'),
-    ('KSAT',        'Sat. Hydraulic Conductivity',  'mm/s'),
+    ('PSIS_SAT',    'Sat. Matric Potential',       'mmH\u2082O',  True),
+    ('THETAS',      'Porosity',                     'vol/vol',     False),
+    ('SHAPE_PARAM', 'Shape (b) Parameter',          'unitless',    False),
+    ('KSAT',        'Sat. Hydraulic Conductivity',  'mm/s',        True),
 ]
 
 
@@ -267,11 +267,15 @@ def _robust_clim(data):
     return vmin, vmax
 
 
-def plot_map(ax, data2d, lons2d, lats2d, title, units, cmap='viridis'):
+def plot_map(ax, data2d, lons2d, lats2d, title, units, cmap='viridis', norm=None):
     """Plot a 2-D spatial field using pcolormesh with a colourbar."""
-    vmin, vmax = _robust_clim(data2d)
-    pcm = ax.pcolormesh(lons2d, lats2d, data2d, cmap=cmap,
-                        vmin=vmin, vmax=vmax, shading='auto')
+    if norm is not None:
+        pcm = ax.pcolormesh(lons2d, lats2d, data2d, cmap=cmap,
+                            norm=norm, shading='auto')
+    else:
+        vmin, vmax = _robust_clim(data2d)
+        pcm = ax.pcolormesh(lons2d, lats2d, data2d, cmap=cmap,
+                            vmin=vmin, vmax=vmax, shading='auto')
     plt.colorbar(pcm, ax=ax, label=units, fraction=0.046, pad=0.04)
     ax.set_title(title, fontsize=10, fontweight='bold')
     ax.set_xlabel('Lon (\u00b0E)', fontsize=7)
@@ -295,12 +299,15 @@ def plot_diff_map(ax, diff2d, lons2d, lats2d, title, units):
 
 
 def plot_map_grid(data_list, titles, lons2d, lats2d, suptitle,
-                  units=None, cmap='viridis', ncols=3, cell_size=(4.2, 3.2)):
+                  units=None, cmap='viridis', ncols=3, cell_size=(4.2, 3.2),
+                  log_scale=None):
     """Create a grid of 2-D spatial maps.
 
-    units : str or list of str (one per map)
-    cmap  : str or list of str (one per map)
+    units     : str or list of str (one per map)
+    cmap      : str or list of str (one per map)
+    log_scale : bool or list of bool (one per map) — use LogNorm for the colourbar
     """
+    from matplotlib.colors import LogNorm
     n = len(data_list)
     if n == 0:
         fig, ax = plt.subplots(figsize=(6, 4))
@@ -311,14 +318,22 @@ def plot_map_grid(data_list, titles, lons2d, lats2d, suptitle,
     if units is None:
         units_list = [''] * n
     cmap_list = [cmap] * n if isinstance(cmap, str) else list(cmap)
+    log_list = ([log_scale] * n) if (log_scale is None or isinstance(log_scale, bool)) else list(log_scale)
     nrows = max(1, (n + ncols - 1) // ncols)
     fig, axes = plt.subplots(nrows, ncols,
                              figsize=(ncols * cell_size[0], nrows * cell_size[1]),
                              squeeze=False)
     axes_flat = axes.flatten()
     for i in range(n):
+        norm = None
+        if log_list[i]:
+            finite = data_list[i][np.isfinite(data_list[i])]
+            pos = finite[finite > 0]
+            if pos.size > 0:
+                norm = LogNorm(vmin=float(np.percentile(pos, 2)),
+                               vmax=float(np.percentile(pos, 98)))
         plot_map(axes_flat[i], data_list[i], lons2d, lats2d,
-                 titles[i], units_list[i], cmap=cmap_list[i])
+                 titles[i], units_list[i], cmap=cmap_list[i], norm=norm)
     for i in range(n, len(axes_flat)):
         axes_flat[i].axis('off')
     fig.suptitle(suptitle, fontsize=14, fontweight='bold')
@@ -419,7 +434,7 @@ def create_scalar_card(ax, name, value, units, long_name):
     ax.text(5, 1.5, wrapped_name, ha='center', va='center', fontsize=8, color='#718096', style='italic')
 
 
-def plot_soil_profile(ax, depths, values, title, units, color='#3182ce'):
+def plot_soil_profile(ax, depths, values, title, units, color='#3182ce', log_scale=False):
     """Create a soil profile plot (vertical bar chart)."""
     ax.barh(range(len(depths)), values, color=color, edgecolor='#2c5282', alpha=0.8)
     ax.set_yticks(range(len(depths)))
@@ -428,11 +443,14 @@ def plot_soil_profile(ax, depths, values, title, units, color='#3182ce'):
     ax.set_xlabel(f'{title} [{units}]')
     ax.set_ylabel('Depth')
     ax.set_title(title, fontsize=12, fontweight='bold')
+    if log_scale:
+        ax.set_xscale('log')
     ax.grid(axis='x', alpha=0.3)
 
     # Add value labels
     for i, v in enumerate(values):
-        ax.text(v + max(values)*0.02, i, f'{v:.1f}', va='center', fontsize=8)
+        x_offset = v * 1.05 if log_scale else v + max(values) * 0.02
+        ax.text(x_offset, i, f'{v:.3g}', va='center', fontsize=8)
 
 
 def plot_pie_chart(ax, labels, values, title, min_pct=0.5):
@@ -1515,14 +1533,14 @@ def main(nc_file):
         depths = SOIL_DEPTHS[:n_lev]
 
         # Collect available parameter arrays
-        hyd_data = {}  # base_name -> (array, display_name, units_str)
-        for base, display, units_str in HYD_PARAM_SPECS:
+        hyd_data = {}  # base_name -> (array, display_name, units_str, log_scale)
+        for base, display, units_str, log_scale in HYD_PARAM_SPECS:
             vname = f'{base}{suffix}'
             if vname in nc.variables:
                 raw = np.array(nc.variables[vname][:n_lev], dtype=float)
                 if hasattr(raw, 'mask'):
                     raw = np.ma.filled(raw, np.nan)
-                hyd_data[base] = (raw, display, units_str)
+                hyd_data[base] = (raw, display, units_str, log_scale)
 
         if hyd_data:
             colors = ['#4299e1', '#ed8936', '#48bb78', '#9f7aea']
@@ -1542,7 +1560,7 @@ def main(nc_file):
                 # Domain-mean vertical profiles
                 fig, axes = plt.subplots(1, n_params,
                                          figsize=(n_params * 3.8, 6), squeeze=False)
-                for idx, (base, (arr3d, display, units_str)) in enumerate(hyd_data.items()):
+                for idx, (base, (arr3d, display, units_str, log_scale)) in enumerate(hyd_data.items()):
                     profile = _hyd_domain_mean(arr3d)
                     ax = axes[0][idx]
                     ax.barh(range(n_lev), profile,
@@ -1554,6 +1572,8 @@ def main(nc_file):
                     ax.set_xlabel(f'[{units_str}]')
                     ax.set_title(f'{display}\n(domain mean)',
                                  fontsize=10, fontweight='bold')
+                    if log_scale:
+                        ax.set_xscale('log')
                     ax.grid(axis='x', alpha=0.3)
                 fig.suptitle('Soil Hydraulic Parameters \u2013 Domain Mean Profiles',
                              fontsize=14, fontweight='bold')
@@ -1568,18 +1588,20 @@ def main(nc_file):
                 plt.close(fig)
 
                 # Depth-mean spatial maps
-                map_data, map_titles, map_units_list = [], [], []
+                map_data, map_titles, map_units_list, map_log_list = [], [], [], []
                 cmaps = ['Blues', 'Purples', 'Oranges', 'Greens']
-                for base, (arr3d, display, units_str) in hyd_data.items():
+                for base, (arr3d, display, units_str, log_scale) in hyd_data.items():
                     map_data.append(np.nanmean(arr3d, axis=0))
                     map_titles.append(f'{display}\n(depth mean)')
                     map_units_list.append(units_str)
+                    map_log_list.append(log_scale)
                 fig = plot_map_grid(
                     map_data, map_titles, lons, lats,
                     'Soil Hydraulic Parameters \u2013 Depth-Averaged Spatial Distribution',
                     units=map_units_list,
                     cmap=[cmaps[i % len(cmaps)] for i in range(len(map_data))],
-                    ncols=min(n_params, 4)
+                    ncols=min(n_params, 4),
+                    log_scale=map_log_list
                 )
                 pdf_path = os.path.join(pdf_dir, '05h_soil_hydraulic_maps.pdf')
                 fig.savefig(pdf_path, bbox_inches='tight')
@@ -1594,10 +1616,11 @@ def main(nc_file):
                 # Single-site: vertical profile plots
                 fig, axes = plt.subplots(1, n_params,
                                          figsize=(n_params * 3.8, 6), squeeze=False)
-                for idx, (base, (arr, display, units_str)) in enumerate(hyd_data.items()):
+                for idx, (base, (arr, display, units_str, log_scale)) in enumerate(hyd_data.items()):
                     plot_soil_profile(axes[0][idx], depths, arr.squeeze(),
                                       display, units_str,
-                                      color=colors[idx % len(colors)])
+                                      color=colors[idx % len(colors)],
+                                      log_scale=log_scale)
                 fig.suptitle('Soil Hydraulic Parameters by Depth',
                              fontsize=14, fontweight='bold')
                 plt.tight_layout()

@@ -104,19 +104,30 @@ def plot_comparison_bars(ax, labels, values1, values2, title, units, label1, lab
     return bars1, bars2
 
 
-def plot_difference_profile(ax, depths, values1, values2, title, units, label1, label2):
+def plot_difference_profile(ax, depths, values1, values2, title, units, label1, label2,
+                            log_scale=False):
     """Create a soil profile comparison with difference shading."""
     diff = values2 - values1
 
+    if log_scale:
+        # Clip to a small positive floor so log axis works for near-zero values
+        floor = 1e-10
+        v1 = np.where(np.isfinite(values1), np.maximum(values1, floor), np.nan)
+        v2 = np.where(np.isfinite(values2), np.maximum(values2, floor), np.nan)
+    else:
+        v1, v2 = values1, values2
+
     # Plot both profiles
-    ax.plot(values1, depths, 'o-', color='#4299e1', linewidth=2, markersize=8, label=label1)
-    ax.plot(values2, depths, 's-', color='#ed8936', linewidth=2, markersize=8, label=label2)
+    ax.plot(v1, depths, 'o-', color='#4299e1', linewidth=2, markersize=8, label=label1)
+    ax.plot(v2, depths, 's-', color='#ed8936', linewidth=2, markersize=8, label=label2)
 
     # Shade the difference
-    ax.fill_betweenx(depths, values1, values2, alpha=0.3,
+    ax.fill_betweenx(depths, v1, v2, alpha=0.3,
                      color='#48bb78' if np.mean(diff) >= 0 else '#e53e3e')
 
     ax.invert_yaxis()
+    if log_scale:
+        ax.set_xscale('log')
     ax.set_xlabel(f'{title} [{units}]')
     ax.set_ylabel('Depth (m)')
     ax.set_title(title, fontsize=11, fontweight='bold')
@@ -1317,7 +1328,7 @@ Examples:
                        if suffix == '_adj' else f'{n_lev} soil layers')
 
         if is_regional:
-            for base, display, units_str in HYD_PARAM_SPECS:
+            for base, display, units_str, log_scale in HYD_PARAM_SPECS:
                 vname = f'{base}{suffix}'
                 has1 = vname in nc1.variables
                 has2 = vname in nc2.variables
@@ -1351,7 +1362,7 @@ Examples:
                 fig, axes = plt.subplots(1, 2, figsize=(12, 6))
                 plot_difference_profile(axes[0], depths, prof1, prof2,
                                         f'{display} (domain mean)', units_str,
-                                        label1, label2)
+                                        label1, label2, log_scale=log_scale)
                 if raw1 is not None and raw2 is not None:
                     diff_dm = np.nanmean(raw2, axis=0) - np.nanmean(raw1, axis=0)
                     plot_diff_map(axes[1], diff_dm, lons, lats,
@@ -1388,7 +1399,7 @@ Examples:
         else:
             # Single-site: combined profile comparison figure + per-layer table
             available_params = []
-            for base, display, units_str in HYD_PARAM_SPECS:
+            for base, display, units_str, log_scale in HYD_PARAM_SPECS:
                 vname = f'{base}{suffix}'
                 has1 = vname in nc1.variables
                 has2 = vname in nc2.variables
@@ -1398,7 +1409,7 @@ Examples:
                          if has1 else np.full(n_lev, np.nan))
                 prof2 = (get_1d_array(nc2.variables[vname])[:n_lev]
                          if has2 else np.full(n_lev, np.nan))
-                available_params.append((base, display, units_str, prof1, prof2))
+                available_params.append((base, display, units_str, log_scale, prof1, prof2))
                 # Accumulate per-layer values for the summary section
                 for i in range(n_lev):
                     summary_hyd_entries.append((
@@ -1411,9 +1422,10 @@ Examples:
             if available_params:
                 n_p = len(available_params)
                 fig, axes = plt.subplots(1, n_p, figsize=(n_p * 4, 7), squeeze=False)
-                for idx, (base, display, units_str, prof1, prof2) in enumerate(available_params):
+                for idx, (base, display, units_str, log_scale, prof1, prof2) in enumerate(available_params):
                     plot_difference_profile(axes[0][idx], depths, prof1, prof2,
-                                            display, units_str, label1, label2)
+                                            display, units_str, label1, label2,
+                                            log_scale=log_scale)
                 fig.suptitle('Soil Hydraulic Parameters Comparison',
                              fontsize=13, fontweight='bold')
                 plt.tight_layout()
