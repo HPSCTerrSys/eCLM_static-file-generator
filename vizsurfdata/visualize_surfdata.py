@@ -450,7 +450,8 @@ def plot_soil_profile(ax, depths, values, title, units, color='#3182ce', log_sca
     # Add value labels
     for i, v in enumerate(values):
         x_offset = v * 1.05 if log_scale else v + max(values) * 0.02
-        ax.text(x_offset, i, f'{v:.3g}', va='center', fontsize=8)
+        fmt = f'{v:.2e}' if log_scale else f'{v:.3g}'
+        ax.text(x_offset, i, fmt, va='center', fontsize=8)
 
 
 def plot_pie_chart(ax, labels, values, title, min_pct=0.5):
