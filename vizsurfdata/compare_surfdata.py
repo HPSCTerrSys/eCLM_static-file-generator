@@ -1441,7 +1441,7 @@ Examples:
 
                 # Per-layer difference table (rows with non-trivial differences)
                 tbl_data = []
-                for base, display, units_str, prof1, prof2 in available_params:
+                for base, display, units_str, log_scale, prof1, prof2 in available_params:
                     for i, d in enumerate(depths):
                         v1 = float(prof1[i]) if np.isfinite(prof1[i]) else 0.0
                         v2 = float(prof2[i]) if np.isfinite(prof2[i]) else 0.0
